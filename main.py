@@ -1,6 +1,6 @@
 import time
-from gaming_healt_data.data_loggers.keyboard_logger import KeyboardLogger
-from gaming_healt_data.data_loggers.mouse_logger import MouseLogger
+from gaming_healt_data.data_loggers.PC.keyboard_logger import KeyboardLogger
+from gaming_healt_data.data_loggers.PC.mouse_logger import MouseLogger
 
 # File names for saving logs
 mouse_log_file = 'gaming_healt_data//recorded_data//mouse_log.csv'
@@ -16,7 +16,7 @@ keyboard_logger.start()
 
 try:
     # Run for a specified duration (e.g., 60 seconds)
-    time.sleep(60)
+    time.sleep(1200)
 except KeyboardInterrupt:
     # If KeyboardInterrupt (Ctrl+C) is received, stop the listeners
     pass

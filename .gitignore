@@ -4,3 +4,4 @@ __pycache__/
 .vscode/
 .micropico
 .DS_Store
+.env
