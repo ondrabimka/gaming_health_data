@@ -16,7 +16,7 @@ keyboard_logger.start()
 
 try:
     # Run for a specified duration (e.g., 60 seconds)
-    time.sleep(1200)
+    time.sleep(120000)
 except KeyboardInterrupt:
     # If KeyboardInterrupt (Ctrl+C) is received, stop the listeners
     pass
