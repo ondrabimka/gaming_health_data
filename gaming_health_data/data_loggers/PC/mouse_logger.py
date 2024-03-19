@@ -1,4 +1,4 @@
-from gaming_healt_data.data_loggers.input_logger import InputLogger
+from gaming_health_data.data_loggers.input_logger import InputLogger
 import mouse
 import threading
 import time

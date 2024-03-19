@@ -1,6 +1,6 @@
 from machine import I2C, Pin
 from mpu9250 import MPU9250
-from gaming_healt_data.data_loggers.keyboard_logger import InputDeviceLogger
+from gaming_health_data.data_loggers.keyboard_logger import InputDeviceLogger
 
 class MouseSensorLogger(InputDeviceLogger):
 

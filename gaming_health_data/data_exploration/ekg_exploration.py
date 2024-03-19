@@ -2,7 +2,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("gaming_healt_data/recorded_data/ekg_data.txt", names=['Timestamp','HeartSignal'])
+df = pd.read_csv("gaming_health_data/recorded_data/ekg_data.txt", names=['Timestamp','HeartSignal'])
 
 # %% Convert Timestamps to Datetime Objects
 df['Timestamp'] = pd.to_datetime(df['Timestamp'], unit='us')

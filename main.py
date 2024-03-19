@@ -1,13 +1,14 @@
 import time
-from gaming_healt_data.data_loggers.PC.keyboard_logger import KeyboardLogger
-from gaming_healt_data.data_loggers.PC.mouse_logger import MouseLogger
+from gaming_health_data.data_loggers.PC.keyboard_logger import KeyboardLogger
+from gaming_health_data.data_loggers.PC.mouse_logger import MouseLogger
 
 # File names for saving logs
-mouse_log_file = 'gaming_healt_data//recorded_data//mouse_log.csv'
-keyboard_log_file = 'gaming_healt_data//recorded_data//keyboard_log.csv'
+mouse_log_file = 'gaming_health_data//recorded_data//mouse_log.csv'
+keyboard_log_file = 'gaming_health_data//recorded_data//keyboard_log.csv'
 
 # Create instances of MouseLogger and KeyboardLogger
 mouse_logger = MouseLogger(mouse_log_file)
+
 keyboard_logger = KeyboardLogger(keyboard_log_file)
 
 # Start listeners for mouse and keyboard
