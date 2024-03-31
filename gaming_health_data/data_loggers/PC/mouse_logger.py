@@ -21,10 +21,10 @@ class MouseLogger:
                 self.logger.log('Mouse', 'Click', 'Left')
             if mouse.is_pressed(button='right'):
                 self.logger.log('Mouse', 'Click', 'Right')
-            time.sleep(0.1)
 
     def start(self):
         self.thread.start()
+        self.click_thread.start()
 
     def join(self):
         pass  # No need to join an infinite loop
