@@ -16,12 +16,9 @@ class MouseLogger:
             time.sleep(0.1)  # Adjust sleep time as needed
             
     def click_listener(self):
-        while True:
-            if mouse.is_pressed(button='left'):
-                self.logger.log('Mouse', 'Click', 'Left')
-            if mouse.is_pressed(button='right'):
-                self.logger.log('Mouse', 'Click', 'Right')
-
+        mouse.on_click(self.logger.log, ('Mouse', 'Click', 'Left'))
+        mouse.on_right_click(self.logger.log, ('Mouse', 'Click', 'Right'))
+        
     def start(self):
         self.thread.start()
         self.click_thread.start()
