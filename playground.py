@@ -6,12 +6,13 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 # %%
-ekg_data = pd.read_csv("gaming_healt_data/recorded_data/ekg_data.txt", names=['Timestamp','HeartSignal'])
-keyboard_log = pd.read_csv("gaming_healt_data/recorded_data/keyboard_log.csv")
-mouse_log = pd.read_csv("gaming_healt_data/recorded_data/mouse_log.csv")
+ekg_data = pd.read_csv("gaming_health_data/recorded_data/ekg_data.txt", names=['Timestamp','HeartSignal'])
+keyboard_log = pd.read_csv("gaming_health_data/recorded_data/keyboard_log.csv")
+mouse_log = pd.read_csv("gaming_health_data/recorded_data/mouse_log.csv")
 
 ### EKG data ###
 # %% Add dots to peaks
+ekg_data['Timestamp'] = ekg_data['Timestamp'] - ekg_data['Timestamp'].iloc[0]
 peaks, _ = find_peaks(ekg_data['HeartSignal'], distance=10, height=1.9, prominence=0.7)
 low_peaks, _ = find_peaks(-ekg_data['HeartSignal'], distance=10, height=-1.3, prominence=0.5)
 ekg_data['Peaks'] = ekg_data['HeartSignal']
@@ -61,4 +62,11 @@ fig.show()
 # fig.show()
 
 
+# %%
+ekg_data
+
+# %%
+mouse_log
+# %%
+keyboard_log
 # %%

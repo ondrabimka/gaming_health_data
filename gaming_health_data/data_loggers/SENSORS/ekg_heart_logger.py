@@ -24,7 +24,7 @@ try:
 
         print("Timestamp (us):", timestamp_us, "Voltage:", voltage)
 
-        utime.sleep_us(2500)  # Adjust the delay as needed in microseconds. This should be ok for EKg sampling based on NS-theorem
+        utime.sleep_us(1500)  # Adjust the delay as needed in microseconds. This should be ok for EKg sampling based on NS-theorem
 
 except KeyboardInterrupt:
     # Close the data file when Ctrl+C is pressed
