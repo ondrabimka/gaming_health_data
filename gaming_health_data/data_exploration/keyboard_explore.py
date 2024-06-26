@@ -1,7 +1,8 @@
 import pandas as pd
 import plotly.express as px
+from gaming_health_data.src.utils import DATA_DIR
 
-keyboard_log = pd.read_csv("gaming_health_data/recorded_data/keyboard_log.csv")
+keyboard_log = pd.read_csv(DATA_DIR / "keyboard_log.csv")
 
 ### Keyboard log ###
 # %% take first row as 0 and calculate time difference

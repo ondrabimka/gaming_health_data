@@ -64,7 +64,9 @@ class KeyboardAnalyzer:
 
 
 # %%
-keyboard_data = pd.read_csv("C:/Users/Admin/Desktop/embedded_code/gaming_health_data/gaming_health_data/recorded_data/keyboard_log_28_04_2024.csv")
+from gaming_health_data.src.utils import DATA_DIR
+
+keyboard_data = pd.read_csv(DATA_DIR / "keyboard_log_28_04_2024.csv")
 keyboard_data.rename(columns={"Time (ms)": "Timestamp"}, inplace=True)
 # %%
 # move to zero

@@ -1,8 +1,9 @@
 # %%
 import pandas as pd
 from gaming_health_data.src.EKGAnalyzer import EKGAnalyzer
+from gaming_health_data.src.utils import DATA_DIR
 # %%
-ekg_analyzer = EKGAnalyzer.from_file("C:/Users/Admin/Desktop/embedded_code/gaming_health_data/gaming_health_data/recorded_data/ekg_data_28_04_2024.txt", to_seconds=False)
+ekg_analyzer = EKGAnalyzer.from_file(DATA_DIR / "ekg_data_28_04_2024.txt", to_seconds=False)
 # %%
 ekg_analyzer.EKG.signal_center
 # %%

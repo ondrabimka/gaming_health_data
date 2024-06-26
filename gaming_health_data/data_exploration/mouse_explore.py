@@ -1,7 +1,8 @@
 import pandas as pd
 import plotly.express as px
+from gaming_health_data.src.utils import DATA_DIR
 
-mouse_log = pd.read_csv("gaming_health_data/recorded_data/mouse_log.csv")
+mouse_log = pd.read_csv(DATA_DIR / "mouse_log.csv")
 
 ### Mouse log ###
 mouse_log['Time (ms)'] = mouse_log['Time (ms)'] - mouse_log['Time (ms)'].iloc[0]
