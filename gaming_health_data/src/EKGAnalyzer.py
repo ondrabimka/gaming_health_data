@@ -43,6 +43,31 @@ class EKGAnalyzer:
         
     @staticmethod
     def from_file(file_path, to_seconds=True, solve_time_reset=True, move_to_zero=True):
+
+        """
+        Reads EKG data from a CSV file.
+        
+        Parameters:
+        -----------
+        file_path : str
+            The path to the CSV file containing EKG data.
+            
+        to_seconds : bool, optional
+            Whether to convert the timestamps to seconds. Default is True.
+        
+        solve_time_reset : bool, optional
+            Whether to solve the time reset issue. Default is True.
+            
+        move_to_zero : bool, optional
+            Whether to move the timestamps to zero. Default is True.
+            
+        Returns:
+        --------
+        ekg_data : pandas.DataFrame
+            The EKG data loaded from the CSV file.     
+        """
+
+        # TODO: To separate methods
         ekg_data = pd.read_csv(file_path, header=None, names=["Timestamp", "HeartSignal"])
         if to_seconds:
             ekg_data['Timestamp'] = ekg_data['Timestamp'] / 1e6
@@ -176,4 +201,3 @@ class EKGAnalyzer:
             The center of the EKG signal.
         """
         return np.mean(self._obj["HeartSignal"])
-    

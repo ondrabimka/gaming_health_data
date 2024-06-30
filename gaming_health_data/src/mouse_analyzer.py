@@ -55,7 +55,27 @@ class MouseAnalyzer:
 
     @staticmethod
     def from_file(file_path, move_to_zero=True):
-        pass
+        """
+        Reads mouse data from a CSV file.
+
+        Parameters:
+        -----------
+        file_path : str
+            The path to the CSV file containing mouse data.
+
+        move_to_zero : bool, optional
+            Whether to move the timestamps to zero. Default is True.
+
+        Returns:
+        --------
+        pandas.DataFrame
+            The mouse data loaded from the CSV file.
+        """
+        mouse_data = pd.read_csv(file_path)
+        mouse_data.rename(columns={'Time (ms)': 'Timestamp'}, inplace=True)
+        if move_to_zero:
+            mouse_data['Timestamp'] = mouse_data['Timestamp'] - mouse_data['Timestamp'].min()
+        return mouse_data
 
     def calculate_speed(self):
         """
@@ -100,7 +120,7 @@ class MouseAnalyzer:
         move_data['Y'] = move_data['Y'].str.extract(r'(\d+)').astype(int)
         return move_data
     
-    def calculate_clicks_per_second(self, window_size=100):
+    def calculate_clicks_per_second(self, window_size=5):
         """
         Calculate the number of clicks per second using a moving window.
 
@@ -145,11 +165,10 @@ class MouseAnalyzer:
         
 
 # %%
-mouse_log = pd.read_csv("C:/Users/Admin/Desktop/embedded_code/gaming_health_data/gaming_health_data/recorded_data/mouse_log_28_04_2024.csv")
+mouse_log = pd.read_csv("gaming_health_data/recorded_data/mouse_log_28_04_2024.csv")
 mouse_log.rename(columns={'Time (ms)': 'Timestamp'}, inplace=True)
 mouse_log['Timestamp'] = mouse_log['Timestamp'] - mouse_log['Timestamp'].min() # move times to zero
 
 # %%
-mouse_log.Mouse.plot_clicks_per_second(window_size=3)
-mouse_log.Mouse.plot_mouse_path()
+mouse_log.Mouse.plot_clicks_per_second(window_size=2)
 # %%

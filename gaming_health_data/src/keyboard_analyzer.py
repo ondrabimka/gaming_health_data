@@ -48,8 +48,39 @@ class KeyboardAnalyzer:
             raise TypeError("KeyboardAnalyzer only works with pandas DataFrames.")
 
     @staticmethod
-    def from_file(file_path):
-        pass
+    def from_file(file_path, solve_time_reset=True, move_to_zero=True):
+        """
+        Reads keyboard data from a CSV file.
+
+        Parameters:
+        -----------
+        file_path : str
+            The path to the CSV file containing keyboard data.
+
+        Returns:
+        --------
+        pandas.DataFrame
+            The keyboard data.
+        """
+        keyboard_data = pd.read_csv(file_path)
+        keyboard_data.rename(columns={"Time (ms)": "Timestamp"}, inplace=True)
+
+        if solve_time_reset:
+            keyboard_data['adjusted_timestamp'] = keyboard_data['Timestamp']
+            offset = 0
+            # Iterate over the rows
+            for i in range(1, len(keyboard_data)):
+                # If the current timestamp is less than the previous one, update 'offset'
+                if keyboard_data.loc[i, 'Timestamp'] < keyboard_data.loc[i-1, 'Timestamp']:
+                    offset = keyboard_data.loc[i-1, 'adjusted_timestamp']
+                # Add 'offset' to 'adjusted_timestamp'
+                keyboard_data.loc[i, 'adjusted_timestamp'] = keyboard_data.loc[i, 'Timestamp'] + offset
+            keyboard_data.drop(columns=['Timestamp'], inplace=True)
+            keyboard_data.rename(columns={'adjusted_timestamp': 'Timestamp'}, inplace=True)
+        if move_to_zero:
+            keyboard_data['Timestamp'] = keyboard_data['Timestamp'] - keyboard_data['Timestamp'].iloc[0]
+
+        return keyboard_data
 
     def analyze(self):
         """
@@ -62,36 +93,42 @@ class KeyboardAnalyzer:
         """
         pass
 
+    def calculate_presses_per_second(self, window_size=5):
+    
+        """
+        Calculate the number of keyboard per second using a moving window.
 
-# %%
-from gaming_health_data.src.utils import DATA_DIR
+        Returns:
+        --------
+        pandas.Series
+            The clicks per second calculated using the moving window.
+        """
 
-keyboard_data = pd.read_csv(DATA_DIR / "keyboard_log_28_04_2024.csv")
-keyboard_data.rename(columns={"Time (ms)": "Timestamp"}, inplace=True)
-# %%
-# move to zero
-keyboard_data["Timestamp"] = keyboard_data["Timestamp"] - keyboard_data["Timestamp"].min()
+        click_times = self.press_data['Timestamp']
+        click_diff = click_times.diff()
+        click_diff = click_diff / 1000  # convert to seconds
+        click_diff = 1 / click_diff # convert to clicks per second
+        click_diff = click_diff.rolling(window=window_size).mean()
+        return click_diff
+    
+    def plot_clicks_per_second(self, window_size=5):
+        """
+        Plot the number of clicks per second.
+        """
+        click_diff = self.calculate_presses_per_second(window_size)
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=self.press_data['Timestamp'], y=click_diff, mode='lines', name='Clicks per second'))
+        fig.update_layout(title='Clicks per second', xaxis_title='Time', yaxis_title='Clicks per second')
+        fig.show()
+    
+    @property
+    def press_data(self):
+        """
+        Extract the press data from the keyboard data.
 
-# %%
-for i in range(len(keyboard_data) - 1000):
-    part = keyboard_data[keyboard_data["Timestamp"].between(keyboard_data["Timestamp"].iloc[i], keyboard_data["Timestamp"].iloc[i + 1000])]
-    print(len(part))
-
-# %%
-def calculate_presses_per_second(keyboard_data):
-    """
-    Calculate the number of key presses per second.
-
-    Parameters:
-    -----------
-    keyboard_data : pandas.DataFrame
-        The keyboard data.
-
-    Returns:
-    --------
-    pandas.Series
-        The number of key presses per second.
-    """
-    for i in range(len(keyboard_data) - 1000):
-        keyboard_data["Timestamp"].iloc[i] = keyboard_data["Timestamp"].iloc[i + 1000] - keyboard_data["Timestamp"].iloc[i]
-        
+        Returns:
+        --------
+        pandas.DataFrame
+            The press data.
+        """
+        return self._obj[self._obj['Action'] == 'Press']
