@@ -47,6 +47,8 @@ The repository is organized into the following directories:
 - [data_loggers](gaming_health_data/data_loggers/README.md): Contains resources related to data loggers used for collecting health data.
 - [recorded_data](gaming_health_data/recorded_data/README.md): Directory with collected data.
 
+Main exploration notebook: [Notebook](gaming_health_data/data_exploration/exploration_notebook.ipynb) 
+
 ### Contributing
 
 Contributions are welcome! If you have any ideas, suggestions, or improvements, please open an issue or submit a pull request. 
