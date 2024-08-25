@@ -120,6 +120,15 @@ class KeyboardAnalyzer:
         fig.add_trace(go.Scatter(x=self.press_data['Timestamp'], y=click_diff, mode='lines', name='Clicks per second'))
         fig.update_layout(title='Clicks per second', xaxis_title='Time', yaxis_title='Clicks per second')
         fig.show()
+
+    def plot_key_presses_histogram(self):
+        """
+        Plot a histogram of the key presses.
+        """
+        pressed_keys = self.press_data[['Details']]
+        pressed_keys['Details'] = pressed_keys['Details'].str.replace('Key: ', '')
+        fig = px.histogram(pressed_keys, x='Details')
+        fig.show()
     
     @property
     def press_data(self):
@@ -132,3 +141,15 @@ class KeyboardAnalyzer:
             The press data.
         """
         return self._obj[self._obj['Action'] == 'Press']
+    
+    @property
+    def release_data(self):
+        """
+        Extract the release data from the keyboard data.
+
+        Returns:
+        --------
+        pandas.DataFrame
+            The release data.
+        """
+        return self._obj[self._obj['Action'] == 'Release']
