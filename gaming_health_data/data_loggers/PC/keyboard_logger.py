@@ -13,7 +13,7 @@ class KeyboardLogger:
 
     def log_key(self, key_event):
         action = 'Press' if key_event.event_type == keyboard.KEY_DOWN else 'Release'
-        key = key_event.name
+        key = key_event.name.lower()
         
         if action == 'Press' and key not in self.pressed_keys:
             self.logger.log('Keyboard', action, f'Key: {key}')
