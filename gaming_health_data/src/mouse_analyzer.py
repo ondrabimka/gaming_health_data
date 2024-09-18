@@ -147,7 +147,7 @@ class MouseAnalyzer:
         """
         click_diff = self.calculate_clicks_per_second(**kwargs)
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=self.click_data['Timestamp'], y=click_diff, mode='lines'))
+        fig.add_trace(go.Scatter(x=self.click_data['Timestamp'], y=click_diff, mode='markers'))
         fig.update_layout(title='Clicks per Second', xaxis_title='Time (ms)', yaxis_title='Clicks per Second')
         return fig
     

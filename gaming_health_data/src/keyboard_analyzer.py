@@ -117,7 +117,7 @@ class KeyboardAnalyzer:
         """
         click_diff = self.calculate_presses_per_second(window_size)
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=self.press_data['Timestamp'], y=click_diff, mode='lines', name='Clicks per second'))
+        fig.add_trace(go.Scatter(x=self.press_data['Timestamp'], y=click_diff, mode='markers', name='Clicks per second'))
         fig.update_layout(title='Clicks per second', xaxis_title='Time', yaxis_title='Clicks per second')
         fig.show()
 
@@ -126,9 +126,32 @@ class KeyboardAnalyzer:
         Plot a histogram of the key presses.
         """
         pressed_keys = self.press_data[['Details']]
-        pressed_keys['Details'] = pressed_keys['Details'].str.replace('Key: ', '')
+        pressed_keys['Details'] = pressed_keys['Details'].str.replace('key: ', '')
         fig = px.histogram(pressed_keys, x='Details')
         fig.show()
+
+
+    def calculate_total_press_time(self):
+        """
+        Calculate the total press time for each key.
+
+        Returns:
+        --------
+        pandas.DataFrame
+            The total press time for each key.
+        """
+        self._obj['key'] = self._obj['Details'].str.split(': ').str[1]
+
+        total_press_time = {}
+
+        for key in self._obj['key'].unique():
+            key_presses = self._obj[(self._obj['key'] == key) & (self._obj['Action'] == 'Press')]
+            key_releases = self._obj[(self._obj['key'] == key) & (self._obj['Action'] == 'Release')]
+            durations = key_releases['Timestamp'].values - key_presses['Timestamp'].values
+            total_press_time[key] = durations.sum()
+
+        result_df = pd.DataFrame(list(total_press_time.items()), columns=['key', 'TotalPressTime'])
+        return result_df.sort_values('TotalPressTime', ascending=False)
     
     @property
     def press_data(self):
