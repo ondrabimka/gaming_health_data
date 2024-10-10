@@ -98,6 +98,11 @@ class KeyboardAnalyzer:
         """
         Calculate the number of keyboard per second using a moving window.
 
+        Parameters:
+        -----------
+        window_size : int, optional
+            The size of the moving window. Default is 5.
+
         Returns:
         --------
         pandas.Series
@@ -111,14 +116,51 @@ class KeyboardAnalyzer:
         click_diff = click_diff.rolling(window=window_size).mean()
         return click_diff
     
-    def plot_clicks_per_second(self, window_size=5):
+    def calculate_presses_by_second(self, include_empty_seconds=True):
         """
-        Plot the number of clicks per second.
+        Calculate the number of key presses that occurred in each second of the recording.
+
+        Parameters
+        ----------
+        press_data_df: pandas DataFrame
+            The DataFrame containing the key press data.
+
+        include_empty_seconds: bool
+            Whether to include seconds where no key presses occurred in the output.
+
+        Returns
+        -------
+        pandas Series
+            A Series where the index is the second number and the values are the number of key presses that occurred in that second.
+        """
+        press_data_df = self.press_data.copy()
+        press_data_df['second'] = press_data_df.Timestamp // 1000
+        presses_by_second = press_data_df.groupby('second').size()
+
+        if include_empty_seconds:
+            full_index = pd.RangeIndex(start=0, stop=(press_data_df.Timestamp.max() // 1000) + 1)
+            presses_by_second = presses_by_second.reindex(full_index, fill_value=0)
+
+        return presses_by_second
+    
+    def plot_presses_per_second(self, window_size=5):
+        """
+        Plot the number of clicks per second using a moving window.
         """
         click_diff = self.calculate_presses_per_second(window_size)
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=self.press_data['Timestamp'], y=click_diff, mode='markers', name='Clicks per second'))
+        fig.add_trace(go.Scatter(x=self.press_data['Timestamp'] / 1000, y=click_diff, mode='markers', name='Clicks per second'))
         fig.update_layout(title='Clicks per second', xaxis_title='Time', yaxis_title='Clicks per second')
+        fig.show()
+
+    def plot_presses_by_second(self, include_empty_seconds=True):
+        """
+        Plot the number of key presses that occurred in each second of the recording.
+        """
+        presses_by_second = self.calculate_presses_by_second(include_empty_seconds)
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=presses_by_second.index, y=presses_by_second, mode='markers', name='Key presses per second'))
+        fig.update_layout(title='Key presses per second', xaxis_title='Time', yaxis_title='Key presses per second')
         fig.show()
 
     def plot_key_presses_histogram(self):

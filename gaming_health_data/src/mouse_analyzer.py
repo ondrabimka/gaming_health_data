@@ -136,7 +136,31 @@ class MouseAnalyzer:
         click_diff = click_diff.rolling(window=window_size).mean()
         return click_diff
     
-    def plot_clicks_per_second(self, **kwargs):
+    def calculate_clicks_by_second(self, include_empty_seconds=True):
+        """
+        Calculate the number of clicks that occurred in each second of the recording.
+
+        Parameters
+        ----------
+        include_empty_seconds: bool
+            Whether to include seconds where no clicks occurred in the output.
+
+        Returns
+        -------
+        pandas Series
+            A Series where the index is the second number and the values are the number of clicks that occurred in that second.
+        """
+        click_data_df = self.click_data.copy()
+        click_data_df['second'] = click_data_df.Timestamp // 1000
+        clicks_by_second = click_data_df.groupby('second').size() 
+
+        if include_empty_seconds:
+            all_seconds = np.arange(click_data_df['second'].min(), click_data_df['second'].max() + 1)
+            clicks_by_second = clicks_by_second.reindex(all_seconds, fill_value=0)
+            
+        return clicks_by_second
+    
+    def plot_clicks_per_second(self, window_size=5):
         """
         Plot the number of clicks per second using a moving window.
 
@@ -145,10 +169,25 @@ class MouseAnalyzer:
         plotly.graph_objects.Figure
             The plot showing the clicks per second.
         """
-        click_diff = self.calculate_clicks_per_second(**kwargs)
+        click_diff = self.calculate_clicks_per_second(window_size)
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=self.click_data['Timestamp'], y=click_diff, mode='markers'))
+        fig.add_trace(go.Scatter(x=self.click_data['Timestamp'] / 1000, y=click_diff, mode='markers'))
         fig.update_layout(title='Clicks per Second', xaxis_title='Time (ms)', yaxis_title='Clicks per Second')
+        return fig
+    
+    def plot_clicks_by_second(self, include_empty_seconds=True):
+        """
+        Plot the number of clicks that occurred in each second of the recording.
+
+        Returns:
+        --------
+        plotly.graph_objects.Figure
+            The plot showing the clicks by second.
+        """
+        clicks_by_second = self.calculate_clicks_by_second(include_empty_seconds)
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=clicks_by_second.index, y=clicks_by_second))
+        fig.update_layout(title='Clicks by Second', xaxis_title='Second', yaxis_title='Number of Clicks')
         return fig
     
     def plot_mouse_path(self):

@@ -97,7 +97,7 @@ class EKGAnalyzer:
         bpm : numpy.ndarray
             An array of BPM values calculated from the EKG data.
         """
-        bpm = 60 / np.diff(self._obj["Timestamp"].iloc[self.low_peaks]) * 1e6
+        bpm = 60 / np.diff(self._obj["Timestamp"].iloc[self.beats])
         return bpm
 
     def calculate_moving_avg_bpm(self, window_size=10):
@@ -145,6 +145,7 @@ class EKGAnalyzer:
         fig.add_scatter(x=self._obj['Timestamp'], y=self._obj['HeartSignal'], mode='lines', name='Raw')
         fig.add_scatter(x=self._obj['Timestamp'].iloc[self.peaks], y=self._obj['HeartSignal'].iloc[self.peaks], mode='markers', name='Peaks')
         fig.add_scatter(x=self._obj['Timestamp'].iloc[self.low_peaks], y=self._obj['HeartSignal'].iloc[self.low_peaks], mode='markers', name='Low Peaks')
+        fig.add_scatter(x=self._obj['Timestamp'].iloc[self.beats], y=self._obj['HeartSignal'].iloc[self.beats], mode='markers', name='Beats', opacity=0.5)
         fig.show()
 
     def plot_moving_avg_bpm(self, window_size=10):
@@ -158,7 +159,7 @@ class EKGAnalyzer:
         """
         moving_avg_bpm = self.calculate_moving_avg_bpm(window_size=window_size)
         fig = go.Figure()
-        fig.add_scatter(x=self._obj["Timestamp"].iloc[self.low_peaks] / 1e6, y=moving_avg_bpm, mode='lines', name='Moving Average BPM')
+        fig.add_scatter(x=self._obj['Timestamp'].iloc[self.beats], y=moving_avg_bpm, mode='lines', name='Moving Average BPM')
         fig.show()
 
     @property
@@ -201,3 +202,38 @@ class EKGAnalyzer:
             The center of the EKG signal.
         """
         return np.mean(self._obj["HeartSignal"])
+    
+    @property
+    def beats(self):
+        """
+        Finds the beats in the EKG data.
+
+        Returns:
+        --------
+        beats : numpy.ndarray
+            An array of beat indices.
+        """
+        threshold = 5
+        combined_peaks = np.sort(np.concatenate((self.peaks, self.low_peaks)))
+        beats = []
+
+        i = 0
+        while i < len(combined_peaks):
+            current_peak = combined_peaks[i]
+            beats.append(current_peak)
+            while i < len(combined_peaks) and combined_peaks[i] <= current_peak + threshold:
+                i += 1
+        return beats  
+
+
+    @property
+    def measurement_length(self):
+        """
+        Calculates the length of the EKG measurement.
+
+        Returns:
+        --------
+        measurement_length : float
+            The length of the EKG measurement in minutes.
+        """
+        return str(round(self._obj["Timestamp"].iloc[-1] / 60, 2) + " minutes")
