@@ -2,6 +2,8 @@
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from typing import Literal
+import ast
 
 @pd.api.extensions.register_dataframe_accessor("EKG")
 class EKGAnalyzer:
@@ -41,11 +43,86 @@ class EKGAnalyzer:
         if "Timestamp" not in obj.columns:
             raise AttributeError("Timestamp column is missing")
         
+    # sensor type AD8232 or Polar H10
     @staticmethod
-    def from_file(file_path, to_seconds=True, solve_time_reset=True, move_to_zero=True):
+    def read_file(file_path, sensor_type: Literal["AD8232", "PolarH10"] = "AD8232", **kwargs):
 
         """
-        Reads EKG data from a CSV file.
+        Reads EKG data from a CSV file captured by the AD8232 or Polar H10 sensor.
+
+        Parameters:
+        -----------
+        file_path : str
+            The path to the CSV file containing EKG data.
+
+        sensor_type : str
+            The type of the sensor used to capture the EKG data. It can be either "AD8232" or "PolarH10".
+
+        **kwargs : dict
+            Additional keyword arguments.
+
+        Returns:
+        --------
+        ekg_data : pandas.DataFrame
+            The EKG data loaded from the CSV file.
+        """
+
+        assert sensor_type in ["AD8232", "PolarH10"], "Invalid sensor type"
+
+        if sensor_type == "AD8232":
+            return EKGAnalyzer.read_file_AD8232(file_path, **kwargs)
+        elif sensor_type == "PolarH10":
+            return EKGAnalyzer.read_file_polat_h10(file_path, **kwargs)
+        else:
+            raise ValueError("Invalid sensor type")
+        
+    @staticmethod
+    def read_file_polat_h10(file_path):
+
+        """
+        Reads EKG data from a CSV file captured by the Polar H10 sensor.
+
+        Parameters:
+        -----------
+        file_path : str
+            The path to the CSV file containing EKG data.
+
+        Returns:
+        --------
+        ekg_data : pandas.DataFrame
+            The EKG data loaded from the CSV file.
+        """
+
+        # Read the file
+        with open(file_path, "r") as f: 
+            lines = f.readlines()
+
+        parsed_data = []
+        for line in lines:
+            entry = ast.literal_eval(line.strip())  # Convert to tuple
+            parsed_data.append(entry)
+
+        ekg_data = pd.DataFrame(parsed_data, columns=["Signal Type", "Timestamp", "Values"])
+        ekg_data["Timestamp"] = pd.to_datetime(ekg_data["Timestamp"], unit="ns")
+        
+        signal = []
+        for samples in ekg_data["Values"]:
+            signal.extend(samples)
+        
+        signal_mV = [x * 1e-3 for x in signal]
+        t = [x / 130.0 for x in range(len(signal_mV))]
+
+        # create new df from the signal and t
+        transformed_data = pd.DataFrame({"Timestamp": t, "HeartSignal": signal_mV})
+        transformed_data.measure_start_date = ekg_data["Timestamp"].iloc[0]
+        transformed_data.measure_end_date = ekg_data["Timestamp"].iloc[-1]
+        return transformed_data
+
+    @staticmethod
+    def read_file_AD8232(file_path, to_seconds=True, solve_time_reset=True, move_to_zero=True):
+
+        """
+        Reads EKG data from a CSV file captured by the AD8232 sensor.
         
         Parameters:
         -----------
