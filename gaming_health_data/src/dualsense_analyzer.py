@@ -1,3 +1,4 @@
+# %%
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -51,26 +52,6 @@ class DualSenseAnalyzer:
         self._obj = pandas_obj
         self.record_start_datetime = pd.to_datetime(self._obj["Timestamp"].min(), unit='s')
 
-        self.name_to_button = {
-            "Axis 4": "R3",
-            "Axis 5": "L3",
-            "Button 0": "Cross",
-            "Button 1": "Circle",
-            "Button 2": "Square",
-            "Button 3": "Triangle",
-            "Button 4": "L1",
-            "Button 5": "R1",
-            "Button 6": "L2",
-            "Button 7": "R2",
-            "Button 8": "Share",
-            "Button 9": "L1",
-
-            "Button 12": "Down",
-            "Button 14": "Right",
-
-
-        }
-    # vide is 7 sec +
 
     @staticmethod
     def _validate(obj):
@@ -91,7 +72,7 @@ class DualSenseAnalyzer:
             raise TypeError("DualSenseAnalyzer only works with pandas DataFrames.")
 
     @classmethod
-    def from_file(cls, file_path, solve_time_reset=True, move_to_zero=True):
+    def read_file(cls, file_path, move_to_zero=True, map_buttons=True):
         """
         Reads DualSense controller data from a CSV file.
 
@@ -106,11 +87,37 @@ class DualSenseAnalyzer:
             The DualSense controller data.
         """
         dualsense_data = pd.read_csv(file_path)
-        cls.record_start_datetime = pd.to_datetime(dualsense_data["Timestamp"].min(), unit='s')
 
-        if solve_time_reset:
-            dualsense_data["Timestamp"] = pd.to_datetime(dualsense_data["Timestamp"])
-            dualsense_data["Timestamp"] = (dualsense_data["Timestamp"] - dualsense_data["Timestamp"].min()).dt.total_seconds()
+        cls.measure_start_date = dualsense_data["Timestamp"].iloc[0]
+        cls.measure_end_date = dualsense_data["Timestamp"].iloc[-1]
+
+        # map buttons to names
+        if map_buttons:
+            dualsense_data["Button/Axis"] = dualsense_data["Button/Axis"].map({
+            "Axis 0": "Left Stick Horizontal", # left is negative, right is positive
+            "Axis 1": "Left Stick Vertical", # down is positive, up is negative
+            "Axis 2": "Right Stick Horizontal", # left is negative, right is positive
+            "Axis 3": "Right Stick Vertical", # down is positive, up is negative
+            "Axis 4": "L2",
+            "Axis 5": "R2",
+            "Button 0": "Cross",
+            "Button 1": "Circle",
+            "Button 2": "Square",
+            "Button 3": "Triangle",
+            "Button 4": "Record",
+            "Button 5": "PS Button",
+            "Button 6": "Options",  
+            "Button 7": "L3",
+            "Button 8": "R3",
+            "Button 9": "L1",
+            "Button 10": "R1",
+            "Button 11": "Up",
+            "Button 12": "Down",
+            "Button 13": "Left",
+            "Button 14": "Right",
+            "Button 15": "Touchpad",
+            "Button 16": "Microphone",
+        })
 
         if move_to_zero:
             dualsense_data["Timestamp"] = dualsense_data["Timestamp"] - dualsense_data["Timestamp"].min()
@@ -130,7 +137,6 @@ class DualSenseAnalyzer:
     def button_df(self, button_name):
         button_number = [key for key, value in self.name_to_button.items() if value == button_name][0]
         return self._obj[self._obj["Button/Axis"] == button_number]
-    
 
 # %% covnert 1738949557.3960457 to time
 import pandas as pd
@@ -141,5 +147,9 @@ df["Timestamp"] = df["Timestamp"] - df["Timestamp"].min()
 # convert to seconds
 df
 
+# %% 
+nwm_data = DualSenseAnalyzer.read_file('gaming_health_data/recorded_data/PS/controller_inputs_23_02_2025_00.csv', move_to_zero=True, map_buttons=True)
+
 # %%
-df
+nwm_data.dualsense.plot_left_stick_movement()
+# %%
