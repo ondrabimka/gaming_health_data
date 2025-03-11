@@ -72,12 +72,12 @@ class EKGAnalyzer:
         if sensor_type == "AD8232":
             return EKGAnalyzer.read_file_AD8232(file_path, **kwargs)
         elif sensor_type == "PolarH10":
-            return EKGAnalyzer.read_file_polat_h10(file_path, **kwargs)
+            return EKGAnalyzer.read_file_polar_h10(file_path, **kwargs)
         else:
             raise ValueError("Invalid sensor type")
         
     @staticmethod
-    def read_file_polat_h10(file_path):
+    def read_file_polar_h10(file_path):
 
         """
         Reads EKG data from a CSV file captured by the Polar H10 sensor.
