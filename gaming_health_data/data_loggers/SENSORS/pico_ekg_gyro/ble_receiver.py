@@ -5,6 +5,10 @@ import time
 from bleak import BleakClient, BleakScanner
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from datetime import datetime
+import numpy as np
+import csv
+import argparse
 
 # Environmental Sensing service and characteristics UUIDs
 ENV_SENSE_UUID = "0000181a-0000-1000-8000-00805f9b34fb"
@@ -25,6 +29,14 @@ line2, = ax2.plot([], [], 'b-')
 # Maximum points to display
 MAX_POINTS = 100
 
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='BLE receiver for Pico EKG and temperature data')
+    parser.add_argument('--no-save', action='store_true', 
+                      help='Disable saving data to CSV files (saving enabled by default)')
+    parser.add_argument('--plot', action='store_true',
+                      help='Enable real-time plotting (disabled by default)')
+    return parser.parse_args()
 
 def setup_plot():
     """Set up the matplotlib plot"""
@@ -92,7 +104,7 @@ def ekg_notification_handler(sender, data):
             print(f"EKG value: {value}")
 
 
-async def run():
+async def run(save_data=True, plot_data=False):
     """Main function to find and connect to the Pico"""
     print("Searching for Pico_Debug device...")
     
@@ -119,17 +131,20 @@ async def run():
             print(f"Note: Could not subscribe to EKG notifications: {str(e)}")
             print("This is normal if the EKG sensor is not enabled on the Pico.")
         
-        # Setup and start the plot
-        setup_plot()
-        ani = FuncAnimation(fig, update_plot, interval=100, blit=True)
-        plt.show(block=False)
+        # Setup and start the plot if enabled
+        ani = None
+        if plot_data:
+            setup_plot()
+            ani = FuncAnimation(fig, update_plot, interval=100, blit=True)
+            plt.show(block=False)
         
         # Keep the connection alive until user interrupts
         print("Receiving data. Press Ctrl+C to stop.")
         try:
             while True:
                 await asyncio.sleep(1)
-                plt.pause(0.1)  # Allow plot to update
+                if plot_data:
+                    plt.pause(0.1)  # Allow plot to update
         except KeyboardInterrupt:
             print("Stopping...")
         finally:
@@ -139,8 +154,36 @@ async def run():
                 await client.stop_notify(EKG_CHAR_UUID)
             except:
                 pass
-            plt.close()
+            
+            if plot_data:
+                plt.close()
 
+            # Save data to CSV files if enabled
+            if save_data:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                # Save temperature data
+                if temperature_data:
+                    temp_filename = f"temperature_data_{timestamp}.csv"
+                    with open(temp_filename, 'w', newline='') as f:
+                        writer = csv.writer(f)
+                        writer.writerow(['Timestamp', 'Temperature (°C)'])
+                        for ts, temp in zip(temperature_timestamps, temperature_data):
+                            writer.writerow([ts, temp])
+                    print(f"Temperature data saved to {temp_filename}")
+                
+                # Save EKG data
+                if ekg_data:
+                    ekg_filename = f"ekg_data_{timestamp}.csv"
+                    with open(ekg_filename, 'w', newline='') as f:
+                        writer = csv.writer(f)
+                        writer.writerow(['Timestamp', 'EKG Value'])
+                        for ts, ekg in zip(ekg_timestamps, ekg_data):
+                            writer.writerow([ts, ekg])
+                    print(f"EKG data saved to {ekg_filename}")
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    args = parse_arguments()
+    save_data = not args.no_save  # True by default unless --no-save is specified
+    plot_data = args.plot        # False by default unless --plot is specified
+    asyncio.run(run(save_data=save_data, plot_data=plot_data))

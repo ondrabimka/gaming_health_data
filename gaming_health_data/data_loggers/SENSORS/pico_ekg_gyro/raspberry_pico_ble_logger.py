@@ -4,6 +4,8 @@ import time
 import bluetooth
 from ble_advertising import advertising_payload
 from micropython import const
+import utime
+
 
 # Define BLE constants
 _IRQ_CENTRAL_CONNECT = const(1)
@@ -144,8 +146,15 @@ class EKGSensor:
         self.sensor = machine.ADC(pin)
         
     def read_value(self):
-        # Read the raw ADC value
-        return self.sensor.read_u16()
+        # get the current timestamp in microseconds
+        timestamp_us = utime.ticks_us()
+
+        # Read analog value from ADC
+        analog_value = self.sensor.read_u16()
+
+        # Convert the analog value to voltage (assuming 3.3V reference)
+        voltage = (analog_value / 65535) * 3.3
+        return voltage # , timestamp_us  # Return both voltage and timestamp
 
 
 class SensorManager:
