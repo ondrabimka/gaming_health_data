@@ -13,11 +13,16 @@ import sys
 import asyncio
 from bleak import BleakScanner, BleakClient
 from bleakheart import PolarMeasurementData 
+from threading import Thread
+from datetime import datetime
+import matplotlib.pyplot as plt
+import argparse
+import os
 
 # Due to asyncio limitations on Windows, one cannot use loop.add_reader
 # to handle keyboard input; we use threading instead. See
 # https://docs.python.org/3.11/library/asyncio-platforms.html
-if sys.platform=="win32":
+if sys.platform == "win32":
     from threading import Thread
     add_reader_support=False
 else:
@@ -25,7 +30,7 @@ else:
     
 async def scan():
     """ Scan for a Polar device. """
-    device= await BleakScanner.find_device_by_filter(
+    device = await BleakScanner.find_device_by_filter(
         lambda dev, adv: dev.name and "polar" in dev.name.lower())
     return device
 
@@ -43,7 +48,7 @@ async def run_ble_client(device, queue):
         input() # clear input buffer
         print (f"Quitting on user command")
         # causes the client task to exit
-        if loop==None:
+        if loop == None:
             quitclient.set() # we are in the event loop thread
         else:
             # we are in a separate thread - call set in the event loop thread
@@ -55,7 +60,7 @@ async def run_ble_client(device, queue):
         quitclient.set() # causes the ble client task to exit
 
     # we use this event to signal the end of the client task
-    quitclient=asyncio.Event()
+    quitclient = asyncio.Event()
     print(f"Connecting to {device}...")
     # the context manager will handle connection/disconnection for us
     async with BleakClient(device, disconnected_callback=
@@ -63,9 +68,9 @@ async def run_ble_client(device, queue):
         print(f"Connected: {client.is_connected}")
         # create the Polar Measurement Data object; set queue for
         # ecg data
-        pmd=PolarMeasurementData(client, ecg_queue=queue)
+        pmd = PolarMeasurementData(client, ecg_queue=queue)
         # ask about ACC settings
-        settings=await pmd.available_settings('ECG')
+        settings = await pmd.available_settings('ECG')
         print("Request for available ECG settings returned the following:")
         for k,v in settings.items():
             print(f"{k}:\t{v}")
@@ -82,7 +87,7 @@ async def run_ble_client(device, queue):
         # start notifications; bleakheart will start pushing
         # data to the queue we passed to PolarMeasurementData
         (err_code, err_msg, _)= await pmd.start_streaming('ECG')
-        if err_code!=0:
+        if err_code != 0:
             print(f"PMD returned an error: {err_msg}")
             sys.exit(err_code)
         # this task does not need to do anything else; wait until
@@ -99,44 +104,83 @@ async def run_ble_client(device, queue):
         queue.put_nowait(('QUIT', None, None, None))
 
 
-async def run_consumer_task(queue):
-    """ This task retrieves ECG data from the queue and does 
-    all the processing. You should ensure it returns control before 
-    the next frame is received from the sensor. 
+async def run_consumer_task(queue, save_data=True, plot_data=False):
+    print("After connecting, will process ECG data")
+    timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+    filename = f'gaming_health_data/recorded_data/SENSORS/ecg_data_polars_h10_{timestamp}.txt'
+    
+    # Setup plotting if enabled
+    if plot_data:
+        plt.ion()  # Enable interactive mode
+        fig, ax = plt.subplots()
+        line, = ax.plot([], [])
+        ax.set_title('ECG Data')
+        ax.set_xlabel('Samples')
+        ax.set_ylabel('Voltage (μV)')
+        data_buffer = []
+        MAX_POINTS = 500  # Number of points to display
 
-    In this example, we simply prints decoded ECG data as it 
-    is received """
-    print("After connecting, will print ECG data in the form")
-    print("('ECG', tstamp, [s1,S2,...,sn])")
-    print("where samples s1,...sn are in microVolt, tstamp is in ns")
-    print("and it refers to the last sample sn.")
-    with open('recorded_data/SENSORS/ecg_data.txt', 'w') as f:
+    if save_data:
+        if not os.path.exists('gaming_health_data/recorded_data/SENSORS'):
+            os.makedirs('gaming_health_data/recorded_data/SENSORS')
+        f = open(filename, 'w')
+    
+    try:
         while True:
             frame = await queue.get()
-            if frame[0] == 'QUIT':  # intercept exit signal
+            if frame[0] == 'QUIT':
                 break
+                
+            if save_data:
+                f.write(f"{frame}\n")
+                f.flush()
+                
+            if plot_data and frame[0] == 'ECG':
+                # Add new data points
+                data_buffer.extend(frame[2])
+                if len(data_buffer) > MAX_POINTS:
+                    data_buffer = data_buffer[-MAX_POINTS:]
+                
+                # Update plot
+                line.set_data(range(len(data_buffer)), data_buffer)
+                ax.relim()
+                ax.autoscale_view()
+                fig.canvas.draw_idle()
+                fig.canvas.flush_events()
+                
             print(frame)
-            f.write(f"{frame}\n")
-            f.flush()  # Ensure the data is written to the file immediately
+    finally:
+        if save_data:
+            f.close()
+        if plot_data:
+            plt.close()
 
 
-async def main():
+async def main(save_data=True, plot_data=False):
     print("Scanning for BLE devices")
-    device=await scan()
-    if device==None:
+    device = await scan()
+    if device == None:
         print("Polar device not found.")
         sys.exit(-4)
     # the queue needs to be long enough to cache all the frames, since
     # PolarMeasurementData uses put_nowait
-    ecgqueue=asyncio.Queue()
+    ecgqueue = asyncio.Queue()
     # producer task will return when the user hits enter or the
     # sensor disconnects
-    producer=run_ble_client(device, ecgqueue)
-    consumer=run_consumer_task(ecgqueue)
+    producer = run_ble_client(device, ecgqueue)
+    consumer = run_consumer_task(ecgqueue, save_data=True, plot_data=True)
     # wait for the two tasks to exit
     await asyncio.gather(producer, consumer)
     print("Bye.")
 
 
-# execute the main coroutine
-asyncio.run(main())
+if __name__ == "__main__":    
+    parser = argparse.ArgumentParser(description="Record ECG data from a Polar device")
+    parser.add_argument('-s', '--save', action='store_true', help="Save data to file", default=True)
+    parser.add_argument('-p', '--plot', action='store_true', help="Plot data in real time", default=False)
+    args = parser.parse_args()
+    # run the main function with the provided arguments
+    asyncio.run(main(save_data=args.save, plot_data=args.plot))
+
+    # example usage:
+    # python gaming_health_data/data_loggers/SENSORS/polars_h10_logger.py --save --plot
