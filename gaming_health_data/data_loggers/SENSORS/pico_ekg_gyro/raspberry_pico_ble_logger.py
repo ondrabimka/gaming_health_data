@@ -5,6 +5,8 @@ import bluetooth
 from ble_advertising import advertising_payload
 from micropython import const
 import utime
+from machine import I2C, Pin
+from mpu6500 import MPU6500, SF_G, SF_DEG_S
 
 
 # Define BLE constants
@@ -16,6 +18,10 @@ _IRQ_GATTS_WRITE = const(3)
 _ENV_SENSE_UUID = bluetooth.UUID(0x181A)
 _TEMP_CHAR_UUID = bluetooth.UUID(0x2A6E)
 _EKG_CHAR_UUID = bluetooth.UUID(0x2A58)  # Using pulse oximeter as it's somewhat related
+
+# MPU6500 service and characteristics
+_ACCEL_CHAR_UUID = bluetooth.UUID(0x2BA1)  # Using Acceleration characteristic UUID
+_GYRO_CHAR_UUID = bluetooth.UUID(0x2BA2)   # Using Angular Velocity characteristic UUID
 
 # Flag definitions
 _FLAG_READ = const(0x0002)
@@ -73,16 +79,29 @@ class BLEConnection:
             _EKG_CHAR_UUID,
             _FLAG_READ | _FLAG_NOTIFY,
         )
+
+        accel_char = (
+            _ACCEL_CHAR_UUID,
+            _FLAG_READ | _FLAG_NOTIFY,
+        )
+        
+        gyro_char = (
+            _GYRO_CHAR_UUID,
+            _FLAG_READ | _FLAG_NOTIFY,
+        )
         
         # Create the environmental sensing service
         env_service = (
             _ENV_SENSE_UUID,
-            (temp_char, ekg_char),
+            (temp_char, ekg_char, accel_char, gyro_char),
         )
         
         # Register the service
         services = (env_service,)
-        ((self.data_handles["temp"], self.data_handles["ekg"]),) = self.ble.gatts_register_services(services)
+        ((self.data_handles["temp"], 
+        self.data_handles["ekg"],
+        self.data_handles["accel"],
+        self.data_handles["gyro"]),) = self.ble.gatts_register_services(services)
     
     def advertise(self):
         # Create advertising payload
@@ -146,9 +165,6 @@ class EKGSensor:
         self.sensor = machine.ADC(pin)
         
     def read_value(self):
-        # get the current timestamp in microseconds
-        timestamp_us = utime.ticks_us()
-
         # Read analog value from ADC
         analog_value = self.sensor.read_u16()
 
@@ -156,6 +172,30 @@ class EKGSensor:
         voltage = (analog_value / 65535) * 3.3
         return voltage # , timestamp_us  # Return both voltage and timestamp
 
+
+class MPU6500Sensor:
+    """
+    Class to handle the MPU6500 accelerometer and gyroscope sensor
+    """
+    def __init__(self, i2c_id: int = 0, scl_pin: int = 1, sda_pin: int = 0):
+
+        # Initialize I2C
+        self.i2c = I2C(i2c_id, scl=Pin(scl_pin), sda=Pin(sda_pin))
+        self.sensor = MPU6500(self.i2c, accel_sf=SF_G, gyro_sf=SF_DEG_S)
+        
+        # Calibrate the sensor
+        self.offset = self.sensor.calibrate(count=10000, delay=0)
+        print(f"MPU6500 calibration offset: {self.offset}")
+        print("mpu6500 id: " + hex(self.sensor.whoami))
+        
+    def read_acceleration(self):
+        return self.sensor.acceleration
+        
+    def read_gyro(self):
+        return self.sensor.gyro
+        
+    def read_temperature(self):
+        return self.sensor.temperature
 
 class SensorManager:
     """
@@ -197,6 +237,10 @@ class SensorManager:
             value = self.sensors[sensor_id].read_temperature()
         elif sensor_id == "ekg":
             value = self.sensors[sensor_id].read_value()
+        elif sensor_id == "accel":
+            value = self.sensors[sensor_id].read_acceleration()
+        elif sensor_id == "gyro":
+            value = self.sensors[sensor_id].read_gyro()
         else:
             try:
                 value = self.sensors[sensor_id].read_value()
@@ -276,10 +320,15 @@ class SensorManager:
 if __name__ == "__main__":
     # Create a sensor manager with default temperature sensor
     manager = SensorManager(ble_name="Pico_Debug")
+
+    # Add MPU6500 sensor
+    mpu = MPU6500Sensor()
+    manager.add_sensor("accel", mpu, buffer_size=20, send_interval=100)
+    manager.add_sensor("gyro", mpu, buffer_size=20, send_interval=100)
     
     # To add an EKG sensor (uncomment when ready)
-    # ekg = EKGSensor(pin=26)  # Adjust pin as needed
-    # manager.add_sensor("ekg", ekg, buffer_size=20, send_interval=1000)
+    ekg = EKGSensor(pin=26)  # Adjust pin as needed
+    manager.add_sensor("ekg", ekg, buffer_size=20, send_interval=1000)
     
     # Start the main loop
     manager.run(sample_interval_ms=100)

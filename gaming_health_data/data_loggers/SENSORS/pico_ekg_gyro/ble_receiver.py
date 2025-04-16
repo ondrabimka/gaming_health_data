@@ -1,8 +1,18 @@
+try:
+    from bleak.backends.winrt.util import allow_sta
+    # tell Bleak we are using a graphical user interface that has been properly
+    # configured to work with asyncio
+    allow_sta()
+except ImportError as e:
+    # other OSes and older versions of Bleak will raise ImportError which we
+    # can safely ignore
+    print("Import Error: ", e)
+    pass
+
+from bleak import BleakClient, BleakScanner
 import asyncio
 import struct
-import sys
 import time
-from bleak import BleakClient, BleakScanner
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from datetime import datetime
@@ -145,6 +155,7 @@ async def run(save_data=True, plot_data=False):
                 await asyncio.sleep(1)
                 if plot_data:
                     plt.pause(0.1)  # Allow plot to update
+                    
         except KeyboardInterrupt:
             print("Stopping...")
         finally:
@@ -183,7 +194,8 @@ async def run(save_data=True, plot_data=False):
                     print(f"EKG data saved to {ekg_filename}")
 
 if __name__ == "__main__":
-    args = parse_arguments()
-    save_data = not args.no_save  # True by default unless --no-save is specified
-    plot_data = args.plot        # False by default unless --plot is specified
-    asyncio.run(run(save_data=save_data, plot_data=plot_data))
+    parser = argparse.ArgumentParser(description="Record ECG data from a Polar device")
+    parser.add_argument('-s', '--save', action='store_true', help="Save data to file", default=True)
+    parser.add_argument('-p', '--plot', action='store_true', help="Plot data in real time", default=False)
+    args = parser.parse_args()
+    asyncio.run(run(save_data = args.save, plot_data = args.plot))
