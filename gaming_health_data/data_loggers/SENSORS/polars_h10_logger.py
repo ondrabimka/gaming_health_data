@@ -156,7 +156,7 @@ async def run_consumer_task(queue, save_data=True, plot_data=False):
             plt.close()
 
 
-async def main(save_data=True, plot_data=False):
+async def main(save_data = True, plot_data = False):
     print("Scanning for BLE devices")
     device = await scan()
     if device == None:
@@ -168,7 +168,7 @@ async def main(save_data=True, plot_data=False):
     # producer task will return when the user hits enter or the
     # sensor disconnects
     producer = run_ble_client(device, ecgqueue)
-    consumer = run_consumer_task(ecgqueue, save_data=True, plot_data=True)
+    consumer = run_consumer_task(ecgqueue, save_data=save_data, plot_data=plot_data)
     # wait for the two tasks to exit
     await asyncio.gather(producer, consumer)
     print("Bye.")
