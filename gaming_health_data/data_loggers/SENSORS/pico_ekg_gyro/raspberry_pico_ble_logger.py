@@ -177,7 +177,7 @@ class MPU6500Sensor:
     """
     Class to handle the MPU6500 accelerometer and gyroscope sensor
     """
-    def __init__(self, i2c_id: int = 0, scl_pin: int = 1, sda_pin: int = 0):
+    def __init__(self, i2c_id: int = 0, scl_pin: int = 5, sda_pin: int = 4):
 
         # Initialize I2C
         self.i2c = I2C(i2c_id, scl=Pin(scl_pin), sda=Pin(sda_pin))
