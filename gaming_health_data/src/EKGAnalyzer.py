@@ -250,7 +250,7 @@ class EKGAnalyzer:
             An array of peak indices.
         """
         from scipy.signal import find_peaks
-        peaks, _ = find_peaks(self._obj["HeartSignal"], distance=10, height=(self.signal_center + 0.1), prominence=0.3)
+        peaks, _ = find_peaks(self._obj["HeartSignal"], distance=40, height=(self.signal_center + 0.4), prominence=0.4)
         return peaks
     
     @property
@@ -265,7 +265,7 @@ class EKGAnalyzer:
         """
         from scipy.signal import find_peaks
 
-        low_peaks, _ = find_peaks(-self._obj["HeartSignal"], distance=10, height=(- self.signal_center + 0.1), prominence=0.3)
+        low_peaks, _ = find_peaks(-self._obj["HeartSignal"], distance=40, height=(- self.signal_center + 0.3), prominence=0.3)
         return low_peaks
     
     @property
@@ -281,16 +281,20 @@ class EKGAnalyzer:
         return np.mean(self._obj["HeartSignal"])
     
     @property
-    def beats(self):
+    def beats(self, threshold=40):
         """
         Finds the beats in the EKG data.
+
+        Parameters:
+        -----------
+        threshold : int, optional
+            The threshold value for detecting beats. Default is 5.
 
         Returns:
         --------
         beats : numpy.ndarray
             An array of beat indices.
         """
-        threshold = 5
         combined_peaks = np.sort(np.concatenate((self.peaks, self.low_peaks)))
         beats = []
 
