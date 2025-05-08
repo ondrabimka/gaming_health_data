@@ -266,28 +266,21 @@ class SensorManager:
         if sensor_id not in self.buffers or not self.buffers[sensor_id]:
             return
         
-        import struct
+        data = bytearray()
+        
         # Format data based on sensor type
-        if sensor_id == "temp":
-            # For temperature, pack as float (4 bytes)
-            data = bytearray()
+        if sensor_id in ["accel", "gyro"]:
+            # Pack all acceleration/gyroscope readings (3 floats each)
             for value in self.buffers[sensor_id]:
-                # Convert float to bytes (4 bytes, little endian)
+                data.extend(struct.pack('<fff', value[0], value[1], value[2]))
+        elif sensor_id == "temp":
+            # Pack temperature readings as floats
+            for value in self.buffers[sensor_id]:
                 data.extend(struct.pack('<f', value))
         else:
-            # For other sensors (like EKG), pack as 16-bit integers
-            data = bytearray()
+            # For EKG, pack as floats
             for value in self.buffers[sensor_id]:
-                if isinstance(value, int):
-                    data.extend(struct.pack('<H', value))  # unsigned short (16-bit)
-                else:
-                    # Try to convert to int if not already
-                    try:
-                        int_value = int(value)
-                        data.extend(struct.pack('<H', int_value))
-                    except:
-                        # If all else fails, encode as string
-                        data.extend(str(value).encode())
+                data.extend(struct.pack('<f', float(value)))
         
         # Send the data
         sent = self.ble.send_data(sensor_id, data)
@@ -323,12 +316,12 @@ if __name__ == "__main__":
 
     # Add MPU6500 sensor
     mpu = MPU6500Sensor()
-    manager.add_sensor("accel", mpu, buffer_size=20, send_interval=100)
-    manager.add_sensor("gyro", mpu, buffer_size=20, send_interval=100)
+    manager.add_sensor("accel", mpu, buffer_size=20, send_interval=400)
+    manager.add_sensor("gyro", mpu, buffer_size=20, send_interval=400)
     
     # To add an EKG sensor (uncomment when ready)
     ekg = EKGSensor(pin=26)  # Adjust pin as needed
-    manager.add_sensor("ekg", ekg, buffer_size=20, send_interval=1000)
+    manager.add_sensor("ekg", ekg, buffer_size=20, send_interval=400)
     
     # Start the main loop
-    manager.run(sample_interval_ms=100)
+    manager.run(sample_interval_ms=400)
