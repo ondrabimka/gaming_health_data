@@ -12,3 +12,8 @@
 - Playing Overwatch 2. Feeling good, but a bit tired, slept 6 hours and have allergies. Otherwise, I feel good.
 - Had the Polar sensor in wrong positions for the first half of the session.
 - Video recording available: https://www.youtube.com/watch?v=eRJz_gGryWA
+
+# 17_05_2025 (PC)
+- Playing Days Gone. Only played for few hours now very good at it. 
+- Video recording available: TBD
+- Kinda tired, due to weather changes and allergies. 

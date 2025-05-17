@@ -204,10 +204,10 @@ class MouseAnalyzer:
         
 
 # %%
-mouse_log = pd.read_csv("gaming_health_data/recorded_data/mouse_log_28_04_2024.csv")
-mouse_log.rename(columns={'Time (ms)': 'Timestamp'}, inplace=True)
-mouse_log['Timestamp'] = mouse_log['Timestamp'] - mouse_log['Timestamp'].min() # move times to zero
+# mouse_log = pd.read_csv("gaming_health_data/recorded_data/mouse_log_28_04_2024.csv")
+# mouse_log.rename(columns={'Time (ms)': 'Timestamp'}, inplace=True)
+# mouse_log['Timestamp'] = mouse_log['Timestamp'] - mouse_log['Timestamp'].min() # move times to zero
 
 # %%
-mouse_log.Mouse.plot_clicks_per_second(window_size=2)
+# mouse_log.Mouse.plot_clicks_per_second(window_size=2)
 # %%
