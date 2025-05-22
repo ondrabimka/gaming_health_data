@@ -107,7 +107,7 @@ async def run_ble_client(device, queue):
 async def run_consumer_task(queue, save_data=True, plot_data=False):
     print("After connecting, will process ECG data")
     timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    filename = f'gaming_health_data/recorded_data/SENSORS/ecg_data_polars_h10_{timestamp}.txt'
+    filename = f'gaming_health_data/recorded_data/SENSORS/ekg_data_polars_h10_{timestamp}.txt'
     
     # Setup plotting if enabled
     if plot_data:

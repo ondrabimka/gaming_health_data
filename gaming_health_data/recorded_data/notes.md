@@ -14,6 +14,10 @@
 - Video recording available: https://www.youtube.com/watch?v=eRJz_gGryWA
 
 # 17_05_2025 (PC)
-- Playing Days Gone. Only played for few hours now very good at it. 
+- Playing Days Gone. Only played for few hours now, not very good at it. 
 - Video recording available: TBD
 - Kinda tired, due to weather changes and allergies. 
+
+# 17_05_2025 (PS)
+- Playing Overwatch 2.
+- Video recording available: https://www.youtube.com/watch?v=dn-Opkb_J60
