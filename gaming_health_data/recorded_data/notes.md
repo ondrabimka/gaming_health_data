@@ -21,3 +21,12 @@
 # 17_05_2025 (PS)
 - Playing Overwatch 2.
 - Video recording available: https://www.youtube.com/watch?v=dn-Opkb_J60
+
+# 22_05_2025 (PC)
+- Playing Days Gone.
+
+
+# 01_06_2025 (PS)
+- Playing Overwatch 2.
+- Video recording available: TBD
+- Playing later in the day.
