@@ -25,8 +25,12 @@
 # 22_05_2025 (PC)
 - Playing Days Gone.
 
-
 # 01_06_2025 (PS)
 - Playing Overwatch 2.
-- Video recording available: TBD
+- Video recording available: https://www.youtube.com/watch?v=6S9m15i-BQQ
 - Playing later in the day.
+
+# 03_07_2025 (PS)
+- Playing Overwatch 2.
+- Video recording available: [video](https://www.youtube.com/watch?v=VeW7bKEo7WI)
+- Hangover from yesterday, slept like 2 hours.
