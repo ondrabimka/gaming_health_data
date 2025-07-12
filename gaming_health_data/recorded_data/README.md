@@ -27,3 +27,6 @@ PC - contains data from the PC, including keyboard and mouse data.
 PS - contains data from the Playstation controller (Dualsense).
 SENSORS - contains ekg data captured using polar H10 sensor.
 VIDEO - contains video annotated recordings of the gaming sessions. (Various annotation based on the game played)
+APPLE_WATCH - contains data from the Apple Watch (if available). The data was extracted as described here: https://github.com/jameno/Simple-Apple-Health-XML-to-CSV
+
+
