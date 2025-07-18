@@ -237,6 +237,7 @@ class EKGAnalyzer:
         moving_avg_bpm = self.calculate_moving_avg_bpm(window_size=window_size)
         fig = go.Figure()
         fig.add_scatter(x=self._obj['Timestamp'].iloc[self.beats], y=moving_avg_bpm, mode='lines', name='Moving Average BPM')
+        fig.update_layout(title='Moving Average BPM', xaxis_title='Time (s)', yaxis_title='BPM')
         fig.show()
 
     @property
