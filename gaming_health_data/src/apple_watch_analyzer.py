@@ -77,29 +77,6 @@ class AppleWatchAnalyzer:
             yaxis=dict(title=data_type)
         )
         return fig
-
-    @property
-    def types(self):
-        """Return all unique types in the data."""
-        return self._obj['type'].dropna().unique()
-
-    @property
-    def activity_types(self):
-        """Return all unique activity types."""
-        if 'activityType' in self._obj.columns:
-            return self._obj['activityType'].dropna().unique()
-        return []
-
-    @property
-    def source_names(self):
-        """Return all unique sourceName values."""
-        return self._obj['sourceName'].dropna().unique()
-    
-    @classmethod
-    def read_file(cls, file_path, **kwargs):
-        """Read a CSV file and return an instance of AppleWatchAnalyzer."""
-        df = pd.read_csv(file_path, **kwargs)
-        return df
     
     def get_sessions(self):
         """Get all unique sessions based on startDate and endDate."""
@@ -168,6 +145,47 @@ class AppleWatchAnalyzer:
         session = self.get_session_from_date(date)
         self.plot_heart_rate_session(session)
 
+    def workout_activity_overview(self, workout_activity_type: str):
+        assert workout_activity_type in self.workout_activity_type, "Invalid workout_activity_type"
+        activity_df = self._obj[self._obj['workoutActivityType'] == 'workout_activity_type'].copy()
+        # TBD
+        return activity_df
+
+    def all_workout_activity_overview(self):
+        activity_types_df = self._obj[self._obj['workoutActivityType'].isin(self.workout_activity_type)].copy()
+        activity_types_df['averageDuration'] = activity_types_df.groupby('workoutActivityType')['duration'].transform('mean')
+        average_duration_dict = activity_types_df.groupby('workoutActivityType')['averageDuration'].first().to_dict()
+        occurence_dict = activity_types_df['workoutActivityType'].value_counts().to_dict()
+        overview_df = pd.DataFrame({
+            'averageDuration': average_duration_dict,
+            'occurrence': occurence_dict
+        })
+        return overview_df
+
+    @property
+    def types(self):
+        """Return all unique types in the data."""
+        return self._obj['type'].dropna().unique()
+
+    @property
+    def workout_activity_type(self):
+        """Return all unique activity types."""
+        if 'workoutActivityType' in self._obj.columns:
+            return self._obj['workoutActivityType'].dropna().unique()
+        return []
+
+    @property
+    def source_names(self):
+        """Return all unique sourceName values."""
+        return self._obj['sourceName'].dropna().unique()
+    
+    @classmethod
+    def read_file(cls, file_path, **kwargs):
+        """Read a CSV file and return an instance of AppleWatchAnalyzer."""
+        df = pd.read_csv(file_path, **kwargs)
+        return df
+
 # %% usage example
-apple_watch_data = pd.DataFrame.applewatch.read_file('gaming_health_data/recorded_data/APPLE_WATCH/apple_health_export_2025-05-28.csv')
-apple_watch_data.applewatch.plot_hearth_rate_for_session_date('2025-05-08')
+# apple_watch_data = pd.DataFrame.applewatch.read_file('gaming_health_data/recorded_data/APPLE_WATCH/apple_health_export_2025-05-28.csv')
+# apple_watch_data.applewatch.plot_hearth_rate_for_session_date('2025-05-08')
+# types = apple_watch_data.applewatch.workout_activity_type
