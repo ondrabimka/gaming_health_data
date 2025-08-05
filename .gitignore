@@ -5,3 +5,6 @@ __pycache__/
 .micropico
 .DS_Store
 .env
+gaming_health_data/recorded_data/APPLE_WATCH
+gaming_health_data/recorded_data/VIDEO/VIDEOS
+debug_output/
