@@ -283,7 +283,7 @@ class EKGAnalyzer:
     @property
     def peaks(self):
         """
-        Finds the peaks in the EKG data.
+        Finds the peaks in the EKG data using adaptive thresholds.
 
         Returns:
         --------
@@ -291,13 +291,25 @@ class EKGAnalyzer:
             An array of peak indices.
         """
         from scipy.signal import find_peaks
-        peaks, _ = find_peaks(self._obj["HeartSignal"], distance=40, height=(self.signal_center + 0.4), prominence=0.4)
+        
+        # Use adaptive thresholds based on signal statistics
+        signal_std = self._obj["HeartSignal"].std()
+        height_threshold = self.signal_center + 2.5 * signal_std
+        prominence_threshold = 1.5 * signal_std
+        min_distance = int(0.3 * 130)  # 300ms minimum between peaks (assumes 130Hz sampling)
+        
+        peaks, _ = find_peaks(
+            self._obj["HeartSignal"], 
+            distance=min_distance, 
+            height=height_threshold, 
+            prominence=prominence_threshold
+        )
         return peaks
     
     @property
     def low_peaks(self):
         """
-        Finds the low peaks in the EKG data.
+        Finds the low peaks in the EKG data using adaptive thresholds.
 
         Returns:
         --------
@@ -305,8 +317,19 @@ class EKGAnalyzer:
             An array of low peak indices.
         """
         from scipy.signal import find_peaks
+        
+        # Use adaptive thresholds based on signal statistics
+        signal_std = self._obj["HeartSignal"].std()
+        height_threshold = -self.signal_center + 2.5 * signal_std
+        prominence_threshold = 1.5 * signal_std
+        min_distance = int(0.3 * 130)  # 300ms minimum between peaks (assumes 130Hz sampling)
 
-        low_peaks, _ = find_peaks(-self._obj["HeartSignal"], distance=40, height=(- self.signal_center + 0.3), prominence=0.3)
+        low_peaks, _ = find_peaks(
+            -self._obj["HeartSignal"], 
+            distance=min_distance, 
+            height=height_threshold, 
+            prominence=prominence_threshold
+        )
         return low_peaks
     
     @property
@@ -524,52 +547,124 @@ class EKGAnalyzer:
     @property
     def stress_index(self):
         """
-        Calculates a simple stress index based on HRV metrics.
+        Calculates a realistic stress index based on HRV metrics and heart rate.
+        Uses normalized approach with physiological ranges.
         
         Returns:
         --------
         stress_index : float
-            Stress index (higher values indicate more stress).
+            Stress index (0-100, higher values indicate more stress).
         """
         rmssd = self.rmssd
         mean_hr = self.mean_heart_rate
         
-        # Simple stress index: higher HR and lower HRV indicate stress
-        if rmssd == 0:
-            return 100.0
+        if rmssd == 0 or mean_hr == 0:
+            return 50.0  # Default neutral value
         
-        stress_index = (mean_hr / 70) * (50 / rmssd) * 100
+        # Normalize heart rate (60-100 bpm is normal range)
+        # Values below 60 get 0 stress, above 100 get max stress contribution
+        hr_stress_component = max(0, min(1, (mean_hr - 60) / 40))
+        
+        # Normalize HRV - RMSSD (20-50ms is normal range for adults)
+        # Higher RMSSD (good variability) = lower stress
+        # Lower RMSSD (poor variability) = higher stress
+        rmssd_stress_component = max(0, min(1, (50 - rmssd) / 30))
+        
+        # Combine components (weight HR slightly more as it's more immediate indicator)
+        stress_index = ((hr_stress_component * 0.6) + (rmssd_stress_component * 0.4)) * 100
+        
         return min(stress_index, 100.0)  # Cap at 100
     
+    @property
+    def pnn50(self):
+        """
+        Calculates pNN50 - percentage of successive RR intervals that differ by more than 50ms.
+        Another important HRV metric.
+        
+        Returns:
+        --------
+        pnn50 : float
+            pNN50 value as percentage.
+        """
+        rr_intervals_ms = self.rr_intervals
+        if len(rr_intervals_ms) < 2:
+            return 0.0
+        
+        successive_diffs = np.abs(np.diff(rr_intervals_ms))
+        pnn50 = (np.sum(successive_diffs > 50) / len(successive_diffs)) * 100
+        return pnn50
+    
+    @property
+    def hr_variability_score(self):
+        """
+        Calculates an overall HRV health score (0-100).
+        
+        Returns:
+        --------
+        hrv_score : float
+            HRV health score (higher is better).
+        """
+        rmssd = self.rmssd
+        sdnn = self.sdnn
+        pnn50 = self.pnn50
+        
+        # Normalize metrics to 0-100 scale
+        # Good RMSSD: >30ms, Excellent: >50ms
+        rmssd_score = min(100, (rmssd / 50) * 100)
+        
+        # Good SDNN: >50ms, Excellent: >100ms  
+        sdnn_score = min(100, (sdnn / 100) * 100)
+        
+        # Good pNN50: >3%, Excellent: >10%
+        pnn50_score = min(100, (pnn50 / 10) * 100)
+        
+        # Average the scores
+        hrv_score = (rmssd_score + sdnn_score + pnn50_score) / 3
+        return hrv_score
+
     def get_heart_analysis_summary(self):
         """
-        Creates a comprehensive summary of heart analysis metrics.
+        Creates a comprehensive summary of heart analysis metrics with improved calculations.
         
         Returns:
         --------
         summary : str
             Formatted summary string with key heart metrics.
         """
-        hr_mean = self.mean_heart_rate
-        rmssd = self.rmssd
-        sdnn = self.sdnn
-        freq_metrics = self.calculate_frequency_domain_hrv()
-        lfhf = freq_metrics["LF_HF_ratio"]
-        rhythm_type = self.rhythm_type
-        arrhythmia_flag = "Yes" if self.arrhythmia_detected else "No"
-        stress_idx = self.stress_index
-        measurement_duration = round(self._obj["Timestamp"].iloc[-1] / 60, 1)
-        
-        summary = (
-            f"Heart Rate Analysis Summary:\n"
-            f"Mean heart rate: {hr_mean:.1f} bpm, "
-            f"HRV (RMSSD): {rmssd:.1f} ms, "
-            f"SDNN: {sdnn:.1f} ms, "
-            f"LF/HF ratio: {lfhf:.2f}, "
-            f"Rhythm: {rhythm_type}, "
-            f"Arrhythmia detected: {arrhythmia_flag}, "
-            f"Stress index: {stress_idx:.1f}/100, "
-            f"Duration: {measurement_duration} min"
-        )
-        
+        try:
+            hr_mean = self.mean_heart_rate
+            rmssd = self.rmssd
+            sdnn = self.sdnn
+            pnn50 = self.pnn50
+            freq_metrics = self.calculate_frequency_domain_hrv()
+            lfhf = freq_metrics["LF_HF_ratio"]
+            rhythm_type = self.rhythm_type
+            arrhythmia_flag = "Yes" if self.arrhythmia_detected else "No"
+            stress_idx = self.stress_index
+            hrv_score = self.hr_variability_score
+            measurement_duration = round(self._obj["Timestamp"].iloc[-1] / 60, 1)
+            
+            # Calculate some additional useful metrics
+            num_beats = len(self.beats)
+            avg_rr_interval = np.mean(self.rr_intervals) if len(self.rr_intervals) > 0 else 0
+            
+            summary = (
+                f"📊 Heart Rate Analysis Summary:\n"
+                f"❤️  Mean HR: {hr_mean:.1f} bpm | "
+                f"🔄 Avg RR: {avg_rr_interval:.0f} ms | "
+                f"⏱️  Duration: {measurement_duration} min | "
+                f"🎯 Beats: {num_beats}\n"
+                f"📈 HRV Metrics: RMSSD: {rmssd:.1f} ms | "
+                f"SDNN: {sdnn:.1f} ms | "
+                f"pNN50: {pnn50:.1f}% | "
+                f"HRV Score: {hrv_score:.0f}/100\n"
+                f"🌊 Frequency: LF/HF ratio: {lfhf:.2f} | "
+                f"🫀 Rhythm: {rhythm_type} | "
+                f"⚠️  Arrhythmia: {arrhythmia_flag} | "
+                f"😰 Stress: {stress_idx:.0f}/100"
+            )
+            
+        except Exception as e:
+            summary = f"Error generating summary: {str(e)}"
+            
         return summary

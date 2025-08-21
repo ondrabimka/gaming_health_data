@@ -14,7 +14,7 @@ class VideoAnnotator:
             raise IOError(f"Could not open video: {video_path}")
 
         # Initialize EasyOCR reader
-        self.reader = easyocr.Reader(['en'], gpu=False)  # Set gpu=True if you have CUDA
+        self.reader = easyocr.Reader(['en'], gpu=True)  # Set gpu=True if you have CUDA
         
         # ROI: Adjusted for OW2 health bottom-left corner
         self.health_roi = {
@@ -350,15 +350,13 @@ annotator = VideoAnnotator(video_path)
 
 
 # Analyze video frames (assuming 30 fps)
-df = annotator.analyze_video(
-    start_frame=19000,
-    end_frame=20000 # 25000,  # Analyze 6000 frames
-    
-)
+df = annotator.analyze_video()
 
 # Print results
 # print("\nFirst few readings:")
 # print(df.head())
 
 # %%
-df
+df.to_csv("annotated_vidoe.csv", index=False)
+
+# %%
