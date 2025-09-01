@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 from typing import Literal
 import ast
 from scipy import signal
-from sklearn.preprocessing import StandardScaler
 
 @pd.api.extensions.register_dataframe_accessor("EKG")
 class EKGAnalyzer:
