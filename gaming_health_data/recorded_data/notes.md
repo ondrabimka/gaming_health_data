@@ -44,3 +44,18 @@
 - Playing Overwatch 2.
 - Video recording available: [video](https://www.youtube.com/watch?v=1Id5kK2wvxw)
 - Sunday, feeling good, slept 8 hours.
+
+# 28_08_2025 (PS)
+- Playing Overwatch 2. (19:00)
+- Video recording available: [video](https://www.youtube.com/watch?v=lwZarhpFHCw)
+- unfortunately no dualsense data, something went wrong with the logger.
+- Quite cool tense ranked matches, unfortunately no controller data.
+
+# 29_08_2025 (PS)
+- Playing Overwatch 2. (11:00)
+- This time unfortunately no Polar data, forgot to start the logger.
+- Video recording available: [video](https://www.youtube.com/watch?v=a9x7dgD_ta0)
+
+- Playing Overwatch 2. (16:00)
+- Video recording available: [video](https://www.youtube.com/watch?v=7p-NH5sbVuM)
+- Lost several ranked matches.... :(. 
