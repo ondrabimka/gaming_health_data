@@ -1,5 +1,4 @@
 # %%
-import pandas as pd 
 import pandas as pd
 from plotly import graph_objects as go
 
@@ -15,10 +14,13 @@ class AppleWatchAnalyzer:
     """A Pandas extension accessor for analyzing Apple Watch health data."""
     def __init__(self, pandas_obj):
         self._obj = pandas_obj
-        # Parse dates for easier filtering
+        # Parse dates for easier filtering and normalize timezones
         for col in ['startDate', 'endDate', 'creationDate']:
             if col in self._obj.columns:
                 self._obj[col] = pd.to_datetime(self._obj[col], errors='coerce')
+                # Convert timezone-aware to timezone-naive (UTC)
+                if hasattr(self._obj[col].dtype, 'tz') and self._obj[col].dtype.tz is not None:
+                    self._obj[col] = self._obj[col].dt.tz_convert('UTC').dt.tz_localize(None)
         # Try to convert value to numeric if possible
         if 'value' in self._obj.columns:
             self._obj['value'] = pd.to_numeric(self._obj['value'], errors='coerce')
@@ -34,12 +36,20 @@ class AppleWatchAnalyzer:
 
     def filter_by_date(self, start=None, end=None):
         """Return a DataFrame filtered by startDate between start and end."""
-        df = self._obj
+        df = self._obj.copy()
         if start:
-            df = df[df['startDate'] >= pd.to_datetime(start)]
+            start_dt = pd.to_datetime(start)
+            # Normalize timezone if needed
+            if hasattr(start_dt, 'tz') and start_dt.tz is not None:
+                start_dt = start_dt.tz_convert('UTC').tz_localize(None)
+            df = df[df['startDate'] >= start_dt]
         if end:
-            df = df[df['startDate'] <= pd.to_datetime(end)]
-        return df.copy()
+            end_dt = pd.to_datetime(end)
+            # Normalize timezone if needed  
+            if hasattr(end_dt, 'tz') and end_dt.tz is not None:
+                end_dt = end_dt.tz_convert('UTC').tz_localize(None)
+            df = df[df['startDate'] <= end_dt]
+        return df
 
     def plot_time_series(self, data_type, start=None, end=None, agg='mean'):
         """Plot a time series for a given data_type and optional date range."""
@@ -86,65 +96,53 @@ class AppleWatchAnalyzer:
         sessions['startDate'] = pd.to_datetime(sessions['startDate'], errors='coerce')
         sessions['endDate'] = pd.to_datetime(sessions['endDate'], errors='coerce')
         return sessions.dropna().reset_index(drop=True)
-    
-    def get_session_from_date(self, date):
-        """Get a session that contains the specified date."""
-        if 'startDate' not in self._obj.columns or 'endDate' not in self._obj.columns:
-            raise ValueError("The DataFrame must contain 'startDate' and 'endDate' columns.")
-        date = pd.to_datetime(date)
-        sessions = self.get_sessions()
-        session = sessions[
-            (sessions['startDate'] <= date) & (sessions['endDate'] >= date)
-        ]
-        if session.empty:
-            raise ValueError(f"No session found for date: {date}")
-        return session.iloc[0]
 
-    def get_hearth_rate_stats_from_session(self, session):
-        """Get heart rate stats from a specific session."""
-        if 'HeartRate' not in self._obj['type'].unique():
-            raise ValueError("No heart rate data available.")
-        hb_data = self._obj[
-            (self._obj['startDate'] >= session['startDate']) &
-            (self._obj['endDate'] <= session['endDate']) &
+    def get_gaming_sessions(self):
+        """Get all gaming sessions."""
+        if 'workoutActivityType' not in self._obj.columns:
+            raise ValueError("The DataFrame must contain a 'workoutActivityType' column.")
+        gaming_sessions = self._obj[self._obj['workoutActivityType'] == "HKWorkoutActivityTypeFitnessGaming"].copy()
+        return gaming_sessions.reset_index(drop=True)
+    
+    def gaming_data_for_session(self, date: str):
+        """Get heart rate data for a gaming session on the specified date."""
+        session_of_interest = self._obj[self._obj['startDate'].dt.date == pd.to_datetime(date).date()]
+        start_date, end_date = session_of_interest['startDate'].min(), session_of_interest['endDate'].max()
+
+        if pd.isna(start_date) or pd.isna(end_date):
+            print(f"No gaming session found on {date}")
+            return pd.DataFrame()
+        
+        hr_data = self._obj[
+            (self._obj['startDate'] >= start_date) &
+            (self._obj['endDate'] <= end_date) &
             (self._obj['type'] == 'HeartRate')
-        ][['startDate', 'value']].copy()
-        hb_data['startDate'] = pd.to_datetime(hb_data['startDate'], errors='coerce')
-        hb_data['value'] = pd.to_numeric(hb_data['value'], errors='coerce')
-        hb_data = hb_data.dropna().reset_index(drop=True)
-        return hb_data
+        ].copy()
+        return hr_data.reset_index(drop=True)
     
-    def plot_heart_rate_session(self, session) -> go.Figure:
-        """Plot heart rate data for a specific session."""
-        hb_data = self.get_hearth_rate_stats_from_session(session)
-        if hb_data.empty:
-            print("No heart rate data for this session.")
+    def plot_hearth_rate_for_session_date(self, date: str):
+        """Plot heart rate data for a gaming session on the specified date."""
+        hr_data = self.gaming_data_for_session(date)
+        if hr_data.empty:
+            print(f"No heart rate data found for gaming session on {date}")
             return
-        hb_data = hb_data.sort_values(by='startDate').reset_index(drop=True)
-        hb_data['startDate'] = hb_data['startDate'] - (hb_data['startDate'].min() - hb_data['startDate'].iloc[0])
-        hb_data['startDate'] = hb_data['startDate'].dt.time
-
+        hr_data = hr_data.sort_values(by='startDate').reset_index(drop=True)
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=hb_data['startDate'],
-            y=hb_data['value'],
+            x=hr_data['startDate'],
+            y=hr_data['value'],
             mode='lines+markers',
             name='Heart Rate'
         ))
         fig.update_layout(
-            title='Heart Rate Data for Session',
+            title=f'Heart Rate Data for Gaming Session on {date}',
             xaxis_title='Time',
             yaxis_title='Heart Rate (bpm)',
             template='plotly_white',
-            yaxis=dict(title='Heart Rate (bpm)', range=[hb_data['value'].min() - 10, hb_data['value'].max() + 10])
+            yaxis=dict(title='Heart Rate (bpm)', range=[hr_data['value'].min() - 10, hr_data['value'].max() + 10])
         )
         return fig
-
-    def plot_hearth_rate_for_session_date(self, date):
-        """Plot heart rate data for a session on a specific date."""
-        session = self.get_session_from_date(date)
-        self.plot_heart_rate_session(session)
-
+        
     def workout_activity_overview(self, workout_activity_type: str):
         assert workout_activity_type in self.workout_activity_type, "Invalid workout_activity_type"
         activity_df = self._obj[self._obj['workoutActivityType'] == 'workout_activity_type'].copy()
@@ -178,6 +176,154 @@ class AppleWatchAnalyzer:
     def source_names(self):
         """Return all unique sourceName values."""
         return self._obj['sourceName'].dropna().unique()
+
+    def get_heart_rate_for_date(self, target_date):
+        """Get all heart rate data for a specific date."""
+        if 'HeartRate' not in self._obj['type'].unique():
+            return pd.DataFrame()
+            
+        # Normalize target date
+        target_date = pd.to_datetime(target_date)
+        
+        # Get start and end of the target date
+        start_of_day = target_date.normalize()
+        end_of_day = start_of_day + pd.Timedelta(days=1)
+        
+        hr_data = self._obj[
+            (self._obj['startDate'] >= start_of_day) &
+            (self._obj['startDate'] < end_of_day) &
+            (self._obj['type'] == 'HeartRate')
+        ][['startDate', 'value']].copy()
+        
+        if hr_data.empty:
+            return pd.DataFrame()
+            
+        hr_data['startDate'] = pd.to_datetime(hr_data['startDate'], errors='coerce')
+        hr_data['value'] = pd.to_numeric(hr_data['value'], errors='coerce')
+        hr_data = hr_data.dropna().reset_index(drop=True)
+        
+        # Add time_seconds column for easier synchronization
+        if not hr_data.empty:
+            start_time = hr_data['startDate'].min()
+            hr_data['time_seconds'] = (hr_data['startDate'] - start_time).dt.total_seconds()
+        
+        return hr_data
+
+    def get_gaming_session_heart_rate(self, date):
+        """Get heart rate data specifically for gaming sessions on a given date."""
+        try:
+            gaming_sessions = self.get_gaming_sessions()
+            if gaming_sessions.empty:
+                print(f"No gaming sessions found")
+                return pd.DataFrame()
+            
+            # Filter sessions by date
+            target_date = pd.to_datetime(date).date()
+            session_on_date = gaming_sessions[gaming_sessions['startDate'].dt.date == target_date]
+            
+            if session_on_date.empty:
+                print(f"No gaming session found on {date}")
+                return pd.DataFrame()
+            
+            # Get the first gaming session on that date
+            session = session_on_date.iloc[0]
+            start_date = session['startDate']
+            end_date = session['endDate']
+            
+            # Get heart rate data for this gaming session
+            hr_data = self._obj[
+                (self._obj['startDate'] >= start_date) &
+                (self._obj['startDate'] <= end_date) &
+                (self._obj['type'] == 'HeartRate')
+            ][['startDate', 'value']].copy()
+            
+            if hr_data.empty:
+                return pd.DataFrame()
+            
+            hr_data = hr_data.sort_values('startDate').reset_index(drop=True)
+            hr_data['startDate'] = pd.to_datetime(hr_data['startDate'], errors='coerce')
+            hr_data['value'] = pd.to_numeric(hr_data['value'], errors='coerce')
+            hr_data = hr_data.dropna().reset_index(drop=True)
+            
+            # Add time_seconds from session start for synchronization
+            if not hr_data.empty:
+                hr_data['time_seconds'] = (hr_data['startDate'] - start_date).dt.total_seconds()
+                hr_data['session_start'] = start_date
+                hr_data['session_end'] = end_date
+                hr_data['session_duration'] = (end_date - start_date).total_seconds()
+            
+            return hr_data
+            
+        except Exception as e:
+            print(f"Error getting gaming session heart rate: {e}")
+            return pd.DataFrame()
+
+    def get_heart_rate_statistics(self, date):
+        """Get comprehensive heart rate statistics for a given date."""
+        hr_data = self.get_heart_rate_for_date(date)
+        
+        if hr_data.empty:
+            return None
+            
+        stats = {
+            'date': date,
+            'total_measurements': len(hr_data),
+            'mean_hr': hr_data['value'].mean(),
+            'median_hr': hr_data['value'].median(),
+            'min_hr': hr_data['value'].min(),
+            'max_hr': hr_data['value'].max(),
+            'std_hr': hr_data['value'].std(),
+            'hr_range': hr_data['value'].max() - hr_data['value'].min(),
+            'duration_minutes': hr_data['time_seconds'].max() / 60 if 'time_seconds' in hr_data.columns else None
+        }
+        
+        # Calculate heart rate zones (approximate)
+        if stats['mean_hr'] > 0:
+            stats['resting_zone'] = len(hr_data[hr_data['value'] < stats['mean_hr'] * 0.6])
+            stats['fat_burn_zone'] = len(hr_data[(hr_data['value'] >= stats['mean_hr'] * 0.6) & 
+                                                 (hr_data['value'] < stats['mean_hr'] * 0.7)])
+            stats['cardio_zone'] = len(hr_data[(hr_data['value'] >= stats['mean_hr'] * 0.7) & 
+                                               (hr_data['value'] < stats['mean_hr'] * 0.85)])
+            stats['peak_zone'] = len(hr_data[hr_data['value'] >= stats['mean_hr'] * 0.85])
+        
+        return stats
+
+    def compare_gaming_vs_daily_hr(self, date):
+        """Compare heart rate during gaming session vs entire day."""
+        daily_hr = self.get_heart_rate_for_date(date)
+        gaming_hr = self.get_gaming_session_heart_rate(date)
+        
+        if daily_hr.empty:
+            return None
+            
+        comparison = {
+            'date': date,
+            'daily_measurements': len(daily_hr),
+            'daily_mean_hr': daily_hr['value'].mean(),
+            'daily_max_hr': daily_hr['value'].max(),
+            'daily_min_hr': daily_hr['value'].min()
+        }
+        
+        if not gaming_hr.empty:
+            comparison.update({
+                'gaming_measurements': len(gaming_hr),
+                'gaming_mean_hr': gaming_hr['value'].mean(),
+                'gaming_max_hr': gaming_hr['value'].max(),
+                'gaming_min_hr': gaming_hr['value'].min(),
+                'gaming_vs_daily_mean_diff': gaming_hr['value'].mean() - daily_hr['value'].mean(),
+                'gaming_session_duration_min': gaming_hr['session_duration'].iloc[0] / 60 if 'session_duration' in gaming_hr.columns else None
+            })
+        else:
+            comparison.update({
+                'gaming_measurements': 0,
+                'gaming_mean_hr': None,
+                'gaming_max_hr': None,
+                'gaming_min_hr': None,
+                'gaming_vs_daily_mean_diff': None,
+                'gaming_session_duration_min': None
+            })
+            
+        return comparison
     
     @classmethod
     def read_file(cls, file_path, **kwargs):
@@ -189,3 +335,5 @@ class AppleWatchAnalyzer:
 # apple_watch_data = pd.DataFrame.applewatch.read_file('gaming_health_data/recorded_data/APPLE_WATCH/apple_health_export_2025-05-28.csv')
 # apple_watch_data.applewatch.plot_hearth_rate_for_session_date('2025-05-08')
 # types = apple_watch_data.applewatch.workout_activity_type
+
+# apple_watch_data.applewatch.plot_hearth_rate_for_session_date('2025-05-08')
