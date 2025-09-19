@@ -251,6 +251,10 @@ class AppleWatchAnalyzer:
                 hr_data['session_start'] = start_date
                 hr_data['session_end'] = end_date
                 hr_data['session_duration'] = (end_date - start_date).total_seconds()
+                
+                # Add measurement period attributes like EKGAnalyzer
+                hr_data.measure_start_date = start_date
+                hr_data.measure_end_date = end_date
             
             return hr_data
             
@@ -324,6 +328,67 @@ class AppleWatchAnalyzer:
             })
             
         return comparison
+
+    @property
+    def measure_start_date(self):
+        """Get the earliest measurement date in the dataset."""
+        if 'startDate' not in self._obj.columns or self._obj.empty:
+            return None
+        return self._obj['startDate'].min()
+    
+    @property 
+    def measure_end_date(self):
+        """Get the latest measurement date in the dataset."""
+        if 'endDate' not in self._obj.columns or self._obj.empty:
+            return None
+        return self._obj['endDate'].max()
+    
+    def get_gaming_session_start_date(self, date):
+        """Get the start date of a specific gaming session."""
+        gaming_start, _ = self.get_gaming_session_measurement_period(date)
+        return gaming_start
+    
+    def get_gaming_session_end_date(self, date):
+        """Get the end date of a specific gaming session."""
+        _, gaming_end = self.get_gaming_session_measurement_period(date)
+        return gaming_end
+    
+    def get_measurement_period_for_date(self, target_date):
+        """Get the measurement period (start and end) for a specific date."""
+        target_date = pd.to_datetime(target_date).normalize()
+        end_of_day = target_date + pd.Timedelta(days=1)
+        
+        date_data = self._obj[
+            (self._obj['startDate'] >= target_date) &
+            (self._obj['startDate'] < end_of_day)
+        ]
+        
+        if date_data.empty:
+            return None, None
+            
+        return date_data['startDate'].min(), date_data['endDate'].max()
+    
+    def get_gaming_session_measurement_period(self, date):
+        """Get the exact measurement period for a gaming session on a given date."""
+        try:
+            gaming_sessions = self.get_gaming_sessions()
+            if gaming_sessions.empty:
+                return None, None
+            
+            # Filter sessions by date
+            target_date = pd.to_datetime(date).date()
+            session_on_date = gaming_sessions[gaming_sessions['startDate'].dt.date == target_date]
+            
+            if session_on_date.empty:
+                return None, None
+            
+            # Get the first gaming session on that date
+            session = session_on_date.iloc[0]
+            return session['startDate'], session['endDate']
+            
+        except Exception as e:
+            print(f"Error getting gaming session measurement period: {e}")
+            return None, None
     
     @classmethod
     def read_file(cls, file_path, **kwargs):
