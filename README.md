@@ -3,14 +3,14 @@ Thank you for visiting the Gaming Health Data repository! This repository is ded
 
 This repository contains comprehensive tools for real-time physiological monitoring during gaming sessions, including EKG heart rate analysis, video game event detection, and advanced correlation analysis between gaming events and physiological responses.
 
-### 🎯 Key Features
+### Key Features
 
-- **💓 Advanced EKG Analysis**: Comprehensive heart rate variability (HRV) analysis with stress detection
-- **🎮 Video Game Event Detection**: Automated detection of deaths, damage, healing from gameplay video
-- **🔬 Physiological Correlation**: Advanced analysis correlating gaming events with heart responses
-- **📊 Interactive Visualizations**: Multi-panel plots showing health, heart metrics, and gaming events
-- **🏥 Clinical-Grade Metrics**: RMSSD, SDNN, pNN50, stress index, and more
-- **⚡ Real-Time Monitoring**: Support for Polar H10 and AD8232 EKG sensors
+- **Advanced EKG Analysis**: Comprehensive heart rate variability (HRV) analysis with stress detection
+- **Video Game Event Detection**: Automated detection of deaths, damage, healing from gameplay video
+- **Physiological Correlation**: Advanced analysis correlating gaming events with heart responses
+- **Interactive Visualizations**: Multi-panel plots showing health, heart metrics, and gaming events
+- **Clinical-Grade Metrics**: RMSSD, SDNN, pNN50, stress index, and more
+- **Real-Time Monitoring**: Support for Polar H10 and AD8232 EKG sensors
 
 ### Table of Contents
 
@@ -68,20 +68,20 @@ To get started with gaming health analysis, follow these steps:
 
 ### Key Components
 
-#### 🫀 **EKGAnalyzer** - Advanced Heart Rate Analysis
+#### **EKGAnalyzer** - Advanced Heart Rate Analysis
 - **Multi-sensor support**: Polar H10, AD8232 sensors
 - **HRV Metrics**: RMSSD, SDNN, pNN50, LF/HF ratio
 - **Adaptive Peak Detection**: Smart signal processing based on data characteristics  
 - **Stress Analysis**: Real-time stress index calculation (0-100 scale)
 - **Clinical Accuracy**: Physiologically validated thresholds and calculations
 
-#### 🎬 **VideoAnnotator** - Gaming Event Detection  
+#### **VideoAnnotator** - Gaming Event Detection  
 - **Automated OCR**: Extract health values from gameplay video
 - **Event Detection**: Deaths, major damage, healing events, low health periods
 - **Data Cleaning**: Robust filtering of OCR errors and invalid readings
 - **Timeline Analysis**: Health patterns over entire gaming sessions
 
-#### 🔬 **GamingHealthCorrelator** - Physiological Response Analysis
+#### **GamingHealthCorrelator** - Physiological Response Analysis
 - **Event Correlation**: Heart rate changes around gaming events  
 - **Stress Pattern Analysis**: Rolling analysis of stress throughout sessions
 - **Statistical Analysis**: Quantify relationships between events and physiology
@@ -89,21 +89,21 @@ To get started with gaming health analysis, follow these steps:
 
 ### Analysis Capabilities
 
-#### 💓 **Heart Rate Variability (HRV) Analysis**
+#### **Heart Rate Variability (HRV) Analysis**
 ```
-📊 Sample Output:
-❤️  Mean HR: 85.6 bpm | 🔄 Avg RR: 701 ms | ⏱️  Duration: 53.5 min | 🎯 Beats: 4579
-📈 HRV Metrics: RMSSD: 61.3 ms | SDNN: 96.1 ms | pNN50: 7.2% | HRV Score: 75/100  
-🌊 Frequency: LF/HF ratio: 2.98 | 🫀 Rhythm: Sinus rhythm | ⚠️  Arrhythmia: No | 😰 Stress: 38/100
+Sample Output:
+Mean HR: 85.6 bpm | Avg RR: 701 ms | Duration: 53.5 min | Beats: 4579
+HRV Metrics: RMSSD: 61.3 ms | SDNN: 96.1 ms | pNN50: 7.2% | HRV Score: 75/100  
+Frequency: LF/HF ratio: 2.98 | Rhythm: Sinus rhythm | Arrhythmia: No | Stress: 38/100
 ```
 
-#### 🎮 **Gaming Event Detection**
+#### **Gaming Event Detection**
 - **Deaths**: Automatic detection when player health = 0
 - **Major Damage**: Rapid health drops (>30 health in <2 seconds)  
 - **Low Health Periods**: Extended time below 25% health
 - **Healing Events**: Rapid health increases (healing/health packs)
 
-#### 📊 **Correlation Analysis**  
+#### **Correlation Analysis**  
 - **Pre/Post Event Analysis**: Heart rate changes 10 seconds before/after events
 - **Event Severity Impact**: Different physiological responses by event severity
 - **Recovery Patterns**: How quickly heart rate returns to baseline
@@ -113,31 +113,31 @@ To get started with gaming health analysis, follow these steps:
 
 ```
 gaming_health_data/
-├── 📁 gaming_health_data/
-│   ├── 📁 src/                           # Core analysis modules
-│   │   ├── 🫀 EKGAnalyzer.py            # Advanced EKG/HRV analysis
-│   │   ├── 🎬 video_annotator_pytesseract.py  # Video health detection
-│   │   ├── 📊 video_analyzer.py         # Health data processing
-│   │   ├── 🔬 apple_watch_analyzer.py   # Apple Watch health data analysis
-│   │   ├── 🖱️ mouse_analyzer.py         # Mouse movement analysis
-│   │   ├── ⌨️ keyboard_analyzer.py      # Keyboard input analysis  
-│   │   └── 📱 dualsense_analyzer.py     # Controller input analysis
-│   ├── 📁 data_exploration/             # Analysis notebooks
-│   │   ├── 📓 exploration_notebook.ipynb    # Main analysis notebook
-│   │   ├── 🔍 ekg_explore.py           # EKG data exploration
-│   │   ├── 🖱️ mouse_explore.py         # Mouse data exploration
-│   │   └── ⌨️ keyboard_explore.py      # Keyboard data exploration
-│   ├── 📁 data_loggers/                 # Data collection tools
-│   │   ├── 💻 PC/                       # PC-based loggers
-│   │   ├── 🎮 PS/                       # PlayStation loggers
-│   │   └── 🔬 SENSORS/                  # Sensor data loggers
-│   └── 📁 recorded_data/                # Collected datasets
-│       ├── 💻 PC/                       # PC gaming data
-│       ├── 🎮 PS/                       # PlayStation data
-│       ├── 🔬 SENSORS/                  # EKG/heart sensor data
-│       ├── 🍎 APPLE_WATCH/             # Apple Health exports
-│       └── 🎬 VIDEO/                    # Gameplay video recordings
-└── 📋 README.md                        # This file
+├── gaming_health_data/
+│   ├── src/                           # Core analysis modules
+│   │   ├── EKGAnalyzer.py            # Advanced EKG/HRV analysis
+│   │   ├── video_annotator_pytesseract.py  # Video health detection
+│   │   ├── video_analyzer.py         # Health data processing
+│   │   ├── apple_watch_analyzer.py   # Apple Watch health data analysis
+│   │   ├── mouse_analyzer.py         # Mouse movement analysis
+│   │   ├── keyboard_analyzer.py      # Keyboard input analysis  
+│   │   └── dualsense_analyzer.py     # Controller input analysis
+│   ├── data_exploration/             # Analysis notebooks
+│   │   ├── exploration_notebook.ipynb    # Main analysis notebook
+│   │   ├── ekg_explore.py           # EKG data exploration
+│   │   ├── mouse_explore.py         # Mouse data exploration
+│   │   └── keyboard_explore.py      # Keyboard data exploration
+│   ├── data_loggers/                 # Data collection tools
+│   │   ├── PC/                       # PC-based loggers
+│   │   ├── PS/                       # PlayStation loggers
+│   │   └── SENSORS/                  # Sensor data loggers
+│   └── recorded_data/                # Collected datasets
+│       ├── PC/                       # PC gaming data
+│       ├── PS/                       # PlayStation data
+│       ├── SENSORS/                  # EKG/heart sensor data
+│       ├── APPLE_WATCH/             # Apple Health exports
+│       └── VIDEO/                    # Gameplay video recordings
+└── README.md                        # This file
 ```
 
 #### Key Directories:
@@ -147,10 +147,9 @@ gaming_health_data/
 - **[recorded_data/](gaming_health_data/recorded_data/README.md)**: Sample datasets and recordings
 
 #### Main Analysis Files:
-- **🔬 [exploration_notebook.ipynb](gaming_health_data/data_exploration/exploration_notebook.ipynb)**: Interactive analysis
+- **[exploration_notebook.ipynb](gaming_health_data/data_exploration/exploration_notebook.ipynb)**: Interactive analysis
 
-
-#### 📊 **Research Questions You Can Answer**
+#### **Research Questions You Can Answer**
 - **"Does getting shot increase heart rate?"** - Measure HR changes around damage events
 - **"How stressful are death events?"** - Quantify stress response to deaths
 - **"Do low health periods create sustained stress?"** - Analyze prolonged activation  
@@ -161,16 +160,15 @@ gaming_health_data/
 
 Contributions are welcome! This project is actively being developed for gaming health research.
 
-#### 🚀 **Ways to Contribute:**
-- **🐛 Bug Reports**: Found an issue? Open an issue with details
-- **✨ Feature Requests**: Ideas for new analysis capabilities  
-- **📊 Data Contributions**: Share anonymized gaming health datasets
-- **🔬 Research**: Validation studies, new correlation methods
-- **📝 Documentation**: Improve guides, add tutorials
-- **🛠️ Code**: Bug fixes, performance improvements, new features
+#### **Ways to Contribute:**
+- **Bug Reports**: Found an issue? Open an issue with details
+- **Feature Requests**: Ideas for new analysis capabilities  
+- **Data Contributions**: Share anonymized gaming health datasets
+- **Research**: Validation studies, new correlation methods
+- **Documentation**: Improve guides, add tutorials
+- **Code**: Bug fixes, performance improvements, new features
 
-
-#### 🎯 **Current Research Areas:**
+#### **Current Research Areas:**
 - Real-time stress detection during gaming
 - Multi-modal physiological monitoring (EKG + other sensors)
 - Machine learning for event prediction
@@ -190,7 +188,7 @@ If you use this repository in your research, please cite:
 }
 ```
 
-#### 📚 **Related Research Areas:**
+#### **Related Research Areas:**
 - Gaming psychology and physiological arousal
 - Heart rate variability in competitive gaming
 - Stress detection through EKG analysis
@@ -203,11 +201,11 @@ This repository is licensed under the [MIT License](LICENSE). Feel free to use t
 
 ---
 
-### 🏆 **Acknowledgments**
+### **Acknowledgments**
 
 - Polar H10 sensor community for excellent EKG data quality
 - OpenCV and Tesseract teams for computer vision tools
 - Plotly team for interactive visualization capabilities  
 - Scientific Python ecosystem (NumPy, SciPy, Pandas)
 
-**Happy Gaming & Stay Healthy!** 🎮💓
+**Happy Gaming & Stay Healthy!**
