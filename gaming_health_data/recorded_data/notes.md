@@ -59,3 +59,9 @@
 - Playing Overwatch 2. (16:00)
 - Video recording available: [video](https://www.youtube.com/watch?v=7p-NH5sbVuM)
 - Lost several ranked matches.... :(. 
+
+
+# 23_11_2025 (PS)
+- Playing Overwatch 2. (20:00)
+- Video recording available: [video](https://www.youtube.com/watch?v=7TV9mUZf1Sg)
+
