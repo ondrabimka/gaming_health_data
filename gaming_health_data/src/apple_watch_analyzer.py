@@ -120,7 +120,7 @@ class AppleWatchAnalyzer:
         ].copy()
         return hr_data.reset_index(drop=True)
     
-    def plot_hearth_rate_for_session_date(self, date: str):
+    def plot_heart_rate_for_session_date(self, date: str):
         """Plot heart rate data for a gaming session on the specified date."""
         hr_data = self.gaming_data_for_session(date)
         if hr_data.empty:
@@ -390,6 +390,101 @@ class AppleWatchAnalyzer:
             print(f"Error getting gaming session measurement period: {e}")
             return None, None
     
+    def get_session_from_date(self, target_date):
+        """
+        Get a session (gaming or general activity session) from a specific date.
+        
+        Parameters:
+        -----------
+        target_date : str
+            Date in YYYY-MM-DD format
+            
+        Returns:
+        --------
+        dict
+            Session information with startDate and endDate
+        """
+        try:
+            # First try to get gaming sessions
+            gaming_sessions = self.get_gaming_sessions()
+            if not gaming_sessions.empty:
+                target_date_obj = pd.to_datetime(target_date).date()
+                session_on_date = gaming_sessions[gaming_sessions['startDate'].dt.date == target_date_obj]
+                
+                if not session_on_date.empty:
+                    session = session_on_date.iloc[0]
+                    return {
+                        'startDate': session['startDate'],
+                        'endDate': session['endDate'],
+                        'type': 'gaming_session',
+                        'workoutActivityType': session.get('workoutActivityType', 'Unknown')
+                    }
+            
+            # If no gaming session found, get general session period for the date
+            start_date, end_date = self.get_measurement_period_for_date(target_date)
+            if start_date and end_date:
+                return {
+                    'startDate': start_date,
+                    'endDate': end_date,
+                    'type': 'general_session'
+                }
+            
+            # If nothing found, return None
+            return None
+            
+        except Exception as e:
+            print(f"Error getting session from date {target_date}: {e}")
+            return None
+    
+    def get_heart_rate_stats_from_session(self, session):
+        """
+        Get heart rate statistics from a session object.
+        
+        Parameters:
+        -----------
+        session : dict
+            Session object containing startDate and endDate
+            
+        Returns:
+        --------
+        pd.DataFrame
+            Heart rate data for the session with time_seconds column
+        """
+        if not session or 'startDate' not in session or 'endDate' not in session:
+            return pd.DataFrame()
+            
+        try:
+            start_date = session['startDate']
+            end_date = session['endDate']
+            
+            # Get heart rate data for this session period
+            hr_data = self._obj[
+                (self._obj['startDate'] >= start_date) &
+                (self._obj['startDate'] <= end_date) &
+                (self._obj['type'] == 'HeartRate')
+            ][['startDate', 'value']].copy()
+            
+            if hr_data.empty:
+                return pd.DataFrame()
+            
+            hr_data = hr_data.sort_values('startDate').reset_index(drop=True)
+            hr_data['startDate'] = pd.to_datetime(hr_data['startDate'], errors='coerce')
+            hr_data['value'] = pd.to_numeric(hr_data['value'], errors='coerce')
+            hr_data = hr_data.dropna().reset_index(drop=True)
+            
+            # Add time_seconds from session start for synchronization
+            if not hr_data.empty:
+                hr_data['time_seconds'] = (hr_data['startDate'] - start_date).dt.total_seconds()
+                hr_data['session_start'] = start_date
+                hr_data['session_end'] = end_date
+                hr_data['session_duration'] = (end_date - start_date).total_seconds()
+            
+            return hr_data
+            
+        except Exception as e:
+            print(f"Error getting heart rate stats from session: {e}")
+            return pd.DataFrame()
+    
     @classmethod
     def read_file(cls, file_path, **kwargs):
         """Read a CSV file and return an instance of AppleWatchAnalyzer."""
@@ -397,8 +492,7 @@ class AppleWatchAnalyzer:
         return df
 
 # %% usage example
-# apple_watch_data = pd.DataFrame.applewatch.read_file('gaming_health_data/recorded_data/APPLE_WATCH/apple_health_export_2025-05-28.csv')
-# apple_watch_data.applewatch.plot_hearth_rate_for_session_date('2025-05-08')
+# apple_watch_data = pd.DataFrame.applewatch.read_file('gaming_health_data/recorded_data/APPLE_WATCH/apple_health_export_2025-11-08.csv')
+# apple_watch_data.applewatch.plot_heart_rate_for_session_date('2025-11-08')
 # types = apple_watch_data.applewatch.workout_activity_type
-
-# apple_watch_data.applewatch.plot_hearth_rate_for_session_date('2025-05-08')
+# apple_watch_data.applewatch.plot_heart_rate_for_session_date('2025-11-08')
