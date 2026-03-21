@@ -45,15 +45,16 @@ warnings.filterwarnings('ignore')
 from gaming_health_data.src.EKGAnalyzer import EKGAnalyzer
 from gaming_health_data.src.video_analyzer import VideoAnalyzer
 from gaming_health_data.src.apple_watch_analyzer import AppleWatchAnalyzer
+from gaming_health_data.src.oura_analyzer import OuraAnalyzer
 
-print("🎮💓 Comprehensive Multimodal Gaming Health Analysis")
+print("Comprehensive Multimodal Gaming Health Analysis")
 print("=" * 60)
 
 # Create output directory for results
 timestamp = datetime.now().strftime("%Y%m%d")
 output_dir = Path(f"multimodal_analysis_results/{timestamp}")
 output_dir.mkdir(parents=True, exist_ok=True)
-print(f"📁 Results will be saved to: {output_dir}")
+print(f"Results will be saved to: {output_dir}")
 
 # %%
 """
@@ -61,21 +62,22 @@ SECTION 1: DATA LOADING AND PREPARATION
 =======================================
 """
 
-print("📂 Loading multimodal data using existing analyzers...")
+print("Loading multimodal data using existing analyzers...")
 
 # Define data paths - update these to match your specific files
-EKG_FILE = "gaming_health_data/recorded_data/SENSORS/ekg_data_polars_h10_2025_05_08_122611.txt"
+EKG_FILE = "gaming_health_data/recorded_data/SENSORS/ekg_data_polars_h10_2025_11_23_204515.txt"
 VIDEO_FILE = "gaming_health_data/recorded_data/VIDEO/annotated/video_annotation_manual_20250508132346.csv"
-APPLE_WATCH_FILE = "gaming_health_data/recorded_data/APPLE_WATCH/apple_health_export_2025-05-28.csv"
+APPLE_WATCH_FILE = "gaming_health_data/recorded_data/APPLE_WATCH/apple_health_export_2026-03-11.csv"
+OURA_DATA_DIR = "gaming_health_data/recorded_data/OURA"  # Directory containing Oura CSV files
 
-# Gaming session date for Apple Watch data correlation
-GAMING_SESSION_DATE = "2025-05-08"  # Match this with your actual gaming session date
+# Gaming session date for health data correlation
+GAMING_SESSION_DATE = "2025-11-23"  # Match this with your actual gaming session date
 
 # Controller data paths (assuming you have 3 files that need to be combined)
 CONTROLLER_FILES = [
-    "gaming_health_data/recorded_data/PS/controller_inputs_08_05_2025_part_00.csv",
-    "gaming_health_data/recorded_data/PS/controller_inputs_08_05_2025_part_01.csv",
-    "gaming_health_data/recorded_data/PS/controller_inputs_08_05_2025_part_02.csv"
+    "gaming_health_data/recorded_data/PS/controller_inputs_23_11_2025_part_00.csv",
+    "gaming_health_data/recorded_data/PS/controller_inputs_23_11_2025_part_01.csv",
+    "gaming_health_data/recorded_data/PS/controller_inputs_23_11_2025_part_02.csv"
 ]
 
 def load_controller_data(file_paths):
@@ -95,7 +97,7 @@ def load_controller_data(file_paths):
         combined = pd.concat(all_parts, ignore_index=True)
         
         # Check what columns we actually have
-        print(f"📋 Controller data columns: {list(combined.columns)}")
+        print(f"Controller data columns: {list(combined.columns)}")
         
         # Convert timestamp to seconds if needed - check for various timestamp column names
         timestamp_col = None
@@ -119,16 +121,16 @@ def load_controller_data(file_paths):
                         combined['time_seconds'] = combined['time_seconds'] / 1000
                     combined['time_seconds'] = combined['time_seconds'] - combined['time_seconds'].min()
                 
-                print(f"🎮 Combined controller data: {len(combined)} inputs over {combined['time_seconds'].max():.1f}s")
+                print(f"Combined controller data: {len(combined)} inputs over {combined['time_seconds'].max():.1f}s")
             except Exception as e:
-                print(f"⚠️ Could not convert timestamps: {e}")
+                print(f"[WARNING] Could not convert timestamps: {e}")
                 # Create a simple time index if timestamp conversion fails
                 combined['time_seconds'] = np.arange(len(combined)) * 0.1  # Assume 10Hz sampling
-                print(f"🎮 Combined controller data: {len(combined)} inputs (using synthetic timestamps)")
+                print(f"Combined controller data: {len(combined)} inputs (using synthetic timestamps)")
         else:
-            print("⚠️ No timestamp column found, creating synthetic timestamps")
+            print("[WARNING] No timestamp column found, creating synthetic timestamps")
             combined['time_seconds'] = np.arange(len(combined)) * 0.1  # Assume 10Hz sampling
-            print(f"🎮 Combined controller data: {len(combined)} inputs (using synthetic timestamps)")
+            print(f"Combined controller data: {len(combined)} inputs (using synthetic timestamps)")
         
         return combined
     
@@ -137,31 +139,31 @@ def load_controller_data(file_paths):
 # Load EKG data using EKGAnalyzer
 try:
     ekg_data = EKGAnalyzer.read_file(EKG_FILE, sensor_type="PolarH10")
-    print(f"✅ EKG: {len(ekg_data)} samples, {ekg_data['Timestamp'].max():.1f}s duration")
+    print(f"[OK] EKG: {len(ekg_data)} samples, {ekg_data['Timestamp'].max():.1f}s duration")
     
     # Add compatibility columns for plotting while preserving original names
     ekg_data['time'] = ekg_data['Timestamp'].copy()
     ekg_data['signal_mV'] = ekg_data['HeartSignal'].copy()
     
 except Exception as e:
-    print(f"❌ Error loading EKG data: {e}")
+    print(f"[ERROR] Error loading EKG data: {e}")
     ekg_data = None
 
 # Load video data using VideoAnalyzer
 try:
     video_data = VideoAnalyzer.from_manual_csv(VIDEO_FILE)
-    print(f"✅ Video: {len(video_data)} events")
+    print(f"[OK] Video: {len(video_data)} events")
     
     # Convert timestamps to seconds using the analyzer method
     video_data = video_data.Video.convert_timestamp_to_seconds()
-    print(f"📋 Video duration: {video_data['time_seconds'].max():.1f}s")
+    print(f"Video duration: {video_data['time_seconds'].max():.1f}s")
     
     # Get basic event statistics
     event_counts = video_data['action'].value_counts()
-    print(f"🎯 Top events: {dict(event_counts.head())}")
+    print(f"Top events: {dict(event_counts.head())}")
     
 except Exception as e:
-    print(f"❌ Error loading video data: {e}")
+    print(f"[ERROR] Error loading video data: {e}")
     video_data = None
 
 # Load controller data
@@ -170,41 +172,101 @@ controller_data = load_controller_data(CONTROLLER_FILES)
 # Load Apple Watch data for the gaming session
 try:
     apple_watch_data = AppleWatchAnalyzer.read_file(APPLE_WATCH_FILE)
-    print(f"✅ Apple Watch: {len(apple_watch_data)} health records loaded")
+    print(f"[OK] Apple Watch: {len(apple_watch_data)} health records loaded")
     
     # Get session data for the gaming date
     try:
         gaming_session = apple_watch_data.applewatch.get_session_from_date(GAMING_SESSION_DATE)
-        print(f"📱 Found Apple Watch session on {GAMING_SESSION_DATE}")
+        print(f"Found Apple Watch session on {GAMING_SESSION_DATE}")
         print(f"   Session: {gaming_session['startDate']} to {gaming_session['endDate']}")
         
         # Get heart rate data from the gaming session
-        apple_hr_data = apple_watch_data.applewatch.get_hearth_rate_stats_from_session(gaming_session)
+        apple_hr_data = apple_watch_data.applewatch.get_heart_rate_stats_from_session(gaming_session)
         
         if len(apple_hr_data) > 0:
             # Convert to seconds from session start for comparison
             session_start = apple_hr_data['startDate'].min()
             apple_hr_data['time_seconds'] = (apple_hr_data['startDate'] - session_start).dt.total_seconds()
             
-            print(f"💓 Apple Watch HR: {len(apple_hr_data)} measurements")
+            print(f"Apple Watch HR: {len(apple_hr_data)} measurements")
             print(f"   HR range: {apple_hr_data['value'].min():.1f} - {apple_hr_data['value'].max():.1f} BPM")
             print(f"   Duration: {apple_hr_data['time_seconds'].max():.1f}s")
         else:
-            print("⚠️ No heart rate data found in Apple Watch session")
+            print("[WARNING] No heart rate data found in Apple Watch session")
             apple_hr_data = None
             
     except Exception as e:
-        print(f"⚠️ Could not find Apple Watch session for {GAMING_SESSION_DATE}: {e}")
+        print(f"[WARNING] Could not find Apple Watch session for {GAMING_SESSION_DATE}: {e}")
         apple_hr_data = None
         gaming_session = None
         
 except Exception as e:
-    print(f"❌ Error loading Apple Watch data: {e}")
+    print(f"[ERROR] Error loading Apple Watch data: {e}")
     apple_watch_data = None
     apple_hr_data = None
     gaming_session = None
 
-print(f"\n📈 Data loading complete!")
+# Load Oura Ring data for the gaming session
+try:
+    oura_data = OuraAnalyzer.read_oura_data(OURA_DATA_DIR)
+    print(f"[OK] Oura Ring: {len(oura_data)} health records loaded")
+    
+    # Get session data for the gaming date
+    try:
+        oura_session = oura_data.oura.get_session_from_date(GAMING_SESSION_DATE)
+        print(f"Found Oura Ring session on {GAMING_SESSION_DATE}")
+        print(f"   Session: {oura_session['startDate']} to {oura_session['endDate']}")
+        
+        # Get heart rate data from the gaming session
+        oura_hr_data = oura_data.oura.get_heart_rate_stats_from_session(oura_session)
+        
+        # Ensure we have the correct column names for compatibility
+        if oura_hr_data is not None and len(oura_hr_data) > 0:
+            # Standardize column names to match Apple Watch format
+            if 'bpm' in oura_hr_data.columns and 'value' not in oura_hr_data.columns:
+                oura_hr_data = oura_hr_data.rename(columns={'bpm': 'value'})
+        
+        # Get additional Oura metrics
+        oura_temp_data = oura_data.oura.get_temperature_for_date(GAMING_SESSION_DATE)
+        oura_readiness = oura_data.oura.get_readiness_for_date(GAMING_SESSION_DATE)
+        oura_activity = oura_data.oura.get_activity_for_date(GAMING_SESSION_DATE)
+        
+        if oura_hr_data is not None and len(oura_hr_data) > 0:
+            print(f"Oura Ring HR: {len(oura_hr_data)} measurements")
+            print(f"   HR range: {oura_hr_data['value'].min():.1f} - {oura_hr_data['value'].max():.1f} BPM")
+            print(f"   Duration: {oura_hr_data['time_seconds'].max():.1f}s")
+        else:
+            print("[WARNING] No heart rate data found in Oura Ring session")
+            oura_hr_data = None
+        
+        if oura_temp_data is not None and len(oura_temp_data) > 0:
+            print(f"Oura Ring Temperature: {len(oura_temp_data)} measurements")
+            print(f"   Temp range: {oura_temp_data['skin_temp'].min():.2f} - {oura_temp_data['skin_temp'].max():.2f}°C")
+        
+        if oura_readiness:
+            print(f"Oura Ring Readiness: Score {oura_readiness.get('score')}")
+        
+        if oura_activity:
+            print(f"Oura Ring Activity: {oura_activity.get('steps')} steps, Score {oura_activity.get('score')}")
+            
+    except Exception as e:
+        print(f"[WARNING] Could not find Oura Ring session for {GAMING_SESSION_DATE}: {e}")
+        oura_hr_data = None
+        oura_session = None
+        oura_temp_data = None
+        oura_readiness = None
+        oura_activity = None
+        
+except Exception as e:
+    print(f"[WARNING] Error loading Oura Ring data: {e}")
+    oura_data = None
+    oura_hr_data = None
+    oura_session = None
+    oura_temp_data = None
+    oura_readiness = None
+    oura_activity = None
+
+print(f"\nData loading complete!")
 if ekg_data is not None:
     print(f"   EKG: {len(ekg_data)} samples")
 if video_data is not None:
@@ -213,6 +275,8 @@ if controller_data is not None:
     print(f"   Controller: {len(controller_data)} inputs")
 if apple_hr_data is not None:
     print(f"   Apple Watch: {len(apple_hr_data)} heart rate measurements")
+if oura_hr_data is not None:
+    print(f"   Oura Ring: {len(oura_hr_data)} heart rate measurements")
 
 # %%
 """
@@ -220,14 +284,14 @@ SECTION 1.5: MULTI-SOURCE HEART RATE COMPARISON
 ===============================================
 """
 
-print("📱💓 Comparing heart rate data from multiple sources...")
+print("Comparing heart rate data from multiple sources...")
 
-def compare_hr_sources(ekg_hr_df, apple_hr_data, video_data):
+def compare_hr_sources(ekg_hr_df, apple_hr_data, oura_hr_data, video_data):
     """
-    Compare heart rate data from EKG sensor and Apple Watch.
+    Compare heart rate data from EKG sensor, Apple Watch, and Oura Ring.
     """
-    if ekg_hr_df is None and apple_hr_data is None:
-        print("⚠️ No heart rate data available from either source")
+    if ekg_hr_df is None and apple_hr_data is None and oura_hr_data is None:
+        print("[WARNING] No heart rate data available from any source")
         return None
     
     comparison_results = {}
@@ -246,7 +310,7 @@ def compare_hr_sources(ekg_hr_df, apple_hr_data, video_data):
         }
         comparison_results['EKG'] = ekg_stats
         
-        print(f"🔬 EKG Heart Rate Analysis:")
+        print(f"EKG Heart Rate Analysis:")
         print(f"   Samples: {ekg_stats['sample_count']}")
         print(f"   Mean HR: {ekg_stats['mean_hr']:.1f} BPM")
         print(f"   Range: {ekg_stats['min_hr']:.1f} - {ekg_stats['max_hr']:.1f} BPM")
@@ -266,133 +330,443 @@ def compare_hr_sources(ekg_hr_df, apple_hr_data, video_data):
         }
         comparison_results['Apple_Watch'] = apple_stats
         
-        print(f"📱 Apple Watch Heart Rate Analysis:")
+        print(f"Apple Watch Heart Rate Analysis:")
         print(f"   Samples: {apple_stats['sample_count']}")
         print(f"   Mean HR: {apple_stats['mean_hr']:.1f} BPM")
         print(f"   Range: {apple_stats['min_hr']:.1f} - {apple_stats['max_hr']:.1f} BPM")
         print(f"   Sampling: {apple_stats['sampling_rate']:.2f} Hz")
     
-    # Compare sources if both available
-    if ekg_hr_df is not None and apple_hr_data is not None:
-        hr_diff = abs(ekg_stats['mean_hr'] - apple_stats['mean_hr'])
-        range_diff_ekg = ekg_stats['max_hr'] - ekg_stats['min_hr']
-        range_diff_apple = apple_stats['max_hr'] - apple_stats['min_hr']
-        
-        print(f"\n🔍 Source Comparison:")
-        print(f"   Mean HR difference: {hr_diff:.1f} BPM")
-        print(f"   EKG HR range: {range_diff_ekg:.1f} BPM")
-        print(f"   Apple Watch HR range: {range_diff_apple:.1f} BPM")
-        print(f"   Sampling rate ratio: {ekg_stats['sampling_rate']/apple_stats['sampling_rate']:.1f}x (EKG vs Apple)")
-        
-        # Agreement analysis
-        if hr_diff < 5:
-            agreement = "EXCELLENT"
-        elif hr_diff < 10:
-            agreement = "GOOD"
-        elif hr_diff < 15:
-            agreement = "MODERATE"
-        else:
-            agreement = "POOR"
-            
-        print(f"   Agreement level: {agreement}")
-        
-        comparison_results['agreement'] = {
-            'mean_hr_diff': hr_diff,
-            'agreement_level': agreement,
-            'ekg_range': range_diff_ekg,
-            'apple_range': range_diff_apple
+    # Oura Ring analysis
+    if oura_hr_data is not None:
+        oura_stats = {
+            'source': 'Oura Ring',
+            'sample_count': len(oura_hr_data),
+            'mean_hr': oura_hr_data['bpm'].mean(),
+            'min_hr': oura_hr_data['bpm'].min(),
+            'max_hr': oura_hr_data['bpm'].max(),
+            'std_hr': oura_hr_data['bpm'].std(),
+            'duration': oura_hr_data['time_seconds'].max(),
+            'sampling_rate': len(oura_hr_data) / oura_hr_data['time_seconds'].max() if oura_hr_data['time_seconds'].max() > 0 else 0
         }
+        comparison_results['Oura_Ring'] = oura_stats
+        
+        print(f"Oura Ring Heart Rate Analysis:")
+        print(f"   Samples: {oura_stats['sample_count']}")
+        print(f"   Mean HR: {oura_stats['mean_hr']:.1f} BPM")
+        print(f"   Range: {oura_stats['min_hr']:.1f} - {oura_stats['max_hr']:.1f} BPM")
+        print(f"   Sampling: {oura_stats['sampling_rate']:.2f} Hz")
+    
+    # Compare sources if multiple available
+    sources = []
+    if ekg_hr_df is not None:
+        sources.append(('EKG', ekg_stats))
+    if apple_hr_data is not None:
+        sources.append(('Apple_Watch', apple_stats))
+    if oura_hr_data is not None:
+        sources.append(('Oura_Ring', oura_stats))
+    
+    if len(sources) >= 2:
+        print(f"\nMulti-Source Comparison:")
+        # Calculate mean HR differences between all pairs
+        for i, (name1, stats1) in enumerate(sources):
+            for name2, stats2 in sources[i+1:]:
+                hr_diff = abs(stats1['mean_hr'] - stats2['mean_hr'])
+                print(f"   {name1} vs {name2} mean HR difference: {hr_diff:.1f} BPM")
+                
+        # Agreement analysis (using EKG as reference if available)
+        if ekg_hr_df is not None:
+            if apple_hr_data is not None:
+                hr_diff = abs(ekg_stats['mean_hr'] - apple_stats['mean_hr'])
+                if hr_diff < 5:
+                    agreement = "EXCELLENT"
+                elif hr_diff < 10:
+                    agreement = "GOOD"
+                elif hr_diff < 15:
+                    agreement = "MODERATE"
+                else:
+                    agreement = "POOR"
+                print(f"   EKG vs Apple Watch agreement: {agreement}")
+                
+            if oura_hr_data is not None:
+                hr_diff = abs(ekg_stats['mean_hr'] - oura_stats['mean_hr'])
+                if hr_diff < 5:
+                    agreement = "EXCELLENT"
+                elif hr_diff < 10:
+                    agreement = "GOOD"
+                elif hr_diff < 15:
+                    agreement = "MODERATE"
+                else:
+                    agreement = "POOR"
+                print(f"   EKG vs Oura Ring agreement: {agreement}")
     
     return comparison_results
 
-def create_multi_source_hr_plot(ekg_hr_df, apple_hr_data, video_data):
+def _hr_pairwise_rows(fig, pairs, row_diff, row_scatter):
     """
-    Create a plot comparing heart rate from multiple sources.
+    Helper: add difference (row_diff) and scatter-correlation (row_scatter) subplots
+    for a list of source pairs.
+
+    pairs: list of dicts with keys:
+        ta, va        - time/value arrays for source A
+        tb, vb        - time/value arrays for source B
+        color         - hex line colour for diff plot
+        fill          - rgba fill string for diff area
+        colorscale    - Plotly colorscale name for scatter
+        xref_s, yref_s - axis refs for the scatter subplot (e.g. 'x5', 'y5')
+        col           - subplot column index (1, 2, or 3)
+        label_a       - name of source A
+        label_b       - name of source B
+    """
+    for p in pairs:
+        ta, va = np.asarray(p['ta']), np.asarray(p['va'])
+        tb, vb = np.asarray(p['tb']), np.asarray(p['vb'])
+        t_end = min(float(ta.max()), float(tb.max()))
+        ct = np.arange(0, t_end, 5)
+        ia = np.interp(ct, ta, va)
+        ib = np.interp(ct, tb, vb)
+        col = p['col']
+        color = p['color']
+
+        # ── Difference plot ───────────────────────────────────────────────────
+        diff = ia - ib
+        mu, sd = float(np.mean(diff)), float(np.std(diff))
+        fig.add_trace(go.Scatter(
+            x=ct, y=diff, mode='lines',
+            line=dict(color=color, width=2),
+            fill='tozeroy', fillcolor=p['fill'],
+            showlegend=False,
+        ), row=row_diff, col=col)
+        fig.add_hline(y=0,      line=dict(color='gray', dash='dash', width=1.5), row=row_diff, col=col)
+        fig.add_hline(y=mu,     line=dict(color=color,  dash='dash', width=2),   row=row_diff, col=col)
+        fig.add_hline(y=mu+sd,  line=dict(color=color,  dash='dot',  width=1),   row=row_diff, col=col)
+        fig.add_hline(y=mu-sd,  line=dict(color=color,  dash='dot',  width=1),   row=row_diff, col=col)
+        # Stats annotation inside diff plot
+        fig.add_annotation(
+            text=f'μ={mu:+.1f}  σ={sd:.1f}',
+            xref='paper', yref='paper',
+            # place at right edge of this column, near top of row_diff
+            x=p['ann_paper_x'], y=p['ann_paper_y'],
+            showarrow=False, font=dict(size=9, color=color),
+            bgcolor='rgba(255,255,255,0.85)', borderpad=3,
+            xanchor='right', yanchor='top',
+        )
+
+        # ── Scatter / correlation plot ────────────────────────────────────────
+        corr = np.corrcoef(ia, ib)[0, 1]
+        rmse = np.sqrt(np.mean((ia - ib) ** 2))
+        hr_min = min(ia.min(), ib.min()) - 1
+        hr_max = max(ia.max(), ib.max()) + 1
+        fig.add_trace(go.Scatter(
+            x=ia, y=ib, mode='markers',
+            marker=dict(color=ct, colorscale=p['colorscale'], size=5,
+                        showscale=False, opacity=0.75),
+            hovertemplate=f'{p["label_a"]}: %{{x:.1f}}<br>{p["label_b"]}: %{{y:.1f}}<extra></extra>',
+            showlegend=False,
+        ), row=row_scatter, col=col)
+        # Identity line
+        fig.add_trace(go.Scatter(
+            x=[hr_min, hr_max], y=[hr_min, hr_max],
+            mode='lines', line=dict(color='gray', dash='dash', width=1.5),
+            showlegend=False,
+        ), row=row_scatter, col=col)
+        # Stats box
+        fig.add_annotation(
+            text=f'r = {corr:.3f}<br>RMSE = {rmse:.2f}<br>n = {len(ct)}',
+            xref=p['xref_s'], yref=p['yref_s'],
+            x=hr_min + (hr_max - hr_min) * 0.05,
+            y=hr_max - (hr_max - hr_min) * 0.08,
+            showarrow=False,
+            font=dict(size=10, family='monospace', color='#2C3E50'),
+            align='left',
+            bgcolor='rgba(255,255,255,0.92)',
+            bordercolor=color, borderwidth=1.5, borderpad=6,
+        )
+
+
+def create_multi_source_hr_plot(ekg_hr_df, apple_hr_data, oura_hr_data, video_data):
+    """
+    3-row, 3-column layout (row 1 full-width):
+      Row 1: Time series — EKG · Apple Watch · Oura Ring + gaming events
+      Row 2: Pairwise difference plots  — EKG−AW | EKG−Oura | AW−Oura
+      Row 3: Pairwise correlation scatters — EKG vs AW | EKG vs Oura | AW vs Oura
     """
     fig = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=['Multi-Source Heart Rate Comparison', 'Heart Rate Difference Analysis'],
-        vertical_spacing=0.15
+        rows=3, cols=3,
+        specs=[
+            [{"colspan": 3}, None, None],
+            [{}, {}, {}],
+            [{}, {}, {}],
+        ],
+        subplot_titles=[
+            'EKG · Apple Watch · Oura Ring — Time Series',
+            'EKG − Apple Watch', 'EKG − Oura Ring', 'Apple Watch − Oura Ring',
+            'EKG vs Apple Watch', 'EKG vs Oura Ring', 'Apple Watch vs Oura Ring',
+        ],
+        vertical_spacing=0.10,
+        horizontal_spacing=0.08,
+        row_heights=[0.36, 0.26, 0.38],
     )
-    
-    # Plot EKG heart rate
+
+    # ── Row 1: Time series ────────────────────────────────────────────────────
     if ekg_hr_df is not None:
-        fig.add_trace(
-            go.Scatter(
-                x=ekg_hr_df['time'],
-                y=ekg_hr_df['hr_smooth'],
-                mode='lines',
-                name='EKG (Polar H10)',
-                line=dict(color='blue', width=2),
-                opacity=0.8
-            ),
-            row=1, col=1
-        )
-    
-    # Plot Apple Watch heart rate
+        fig.add_trace(go.Scatter(
+            x=ekg_hr_df['time'], y=ekg_hr_df['hr_smooth'],
+            mode='lines', name='EKG (Polar H10)',
+            line=dict(color='#2E86DE', width=2.5), opacity=0.9,
+        ), row=1, col=1)
+
     if apple_hr_data is not None:
-        fig.add_trace(
-            go.Scatter(
-                x=apple_hr_data['time_seconds'],
-                y=apple_hr_data['value'],
-                mode='markers+lines',
-                name='Apple Watch',
-                line=dict(color='red', width=2),
-                marker=dict(size=4),
-                opacity=0.8
-            ),
-            row=1, col=1
-        )
-    
-    # Add gaming events
+        fig.add_trace(go.Scatter(
+            x=apple_hr_data['time_seconds'], y=apple_hr_data['value'],
+            mode='markers+lines', name='Apple Watch',
+            line=dict(color='#EE5A6F', width=2), marker=dict(size=4), opacity=0.8,
+        ), row=1, col=1)
+
+    if oura_hr_data is not None and len(oura_hr_data) > 0:
+        fig.add_trace(go.Scatter(
+            x=oura_hr_data['time_seconds'], y=oura_hr_data['value'],
+            mode='markers+lines', name='Oura Ring',
+            line=dict(color='#26DE81', width=2), marker=dict(size=4), opacity=0.7,
+        ), row=1, col=1)
+
     if video_data is not None:
-        event_colors = {'kill': 'green', 'death': 'red', 'assist': 'orange'}
-        for event_type, color in event_colors.items():
-            event_times = video_data[video_data['action'] == event_type]['time_seconds']
-            for event_time in event_times:
-                fig.add_vline(
-                    x=event_time,
-                    line=dict(color=color, width=1, dash='dot'),
-                    opacity=0.6,
-                    row=1, col=1
-                )
-    
-    # Calculate and plot differences if both sources available
-    if ekg_hr_df is not None and apple_hr_data is not None:
-        # Interpolate to common time base for comparison
-        common_times = np.arange(0, min(ekg_hr_df['time'].max(), apple_hr_data['time_seconds'].max()), 10)
-        
-        ekg_interp = np.interp(common_times, ekg_hr_df['time'], ekg_hr_df['hr_smooth'])
-        apple_interp = np.interp(common_times, apple_hr_data['time_seconds'], apple_hr_data['value'])
-        
-        hr_diff = ekg_interp - apple_interp
-        
-        fig.add_trace(
-            go.Scatter(
-                x=common_times,
-                y=hr_diff,
-                mode='lines',
-                name='EKG - Apple Watch',
-                line=dict(color='purple', width=2),
-                fill='tonexty'
-            ),
-            row=2, col=1
-        )
-        
-        # Add zero line
-        fig.add_hline(y=0, line=dict(color='gray', dash='dash'), row=2, col=1)
-    
+        ev_colors = {'kill': '#A55EEA', 'death': '#2C3E50', 'assist': '#FD9644'}
+        for ev_type, color in ev_colors.items():
+            for t in video_data[video_data['action'] == ev_type]['time_seconds'].iloc[:10]:
+                fig.add_vline(x=t, line=dict(color=color, width=1, dash='dot'),
+                              opacity=0.5, row=1, col=1)
+
+    # ── Rows 2 & 3: All pairwise comparisons ─────────────────────────────────
+    has_ekg   = ekg_hr_df is not None and len(ekg_hr_df) > 0
+    has_apple = apple_hr_data is not None and len(apple_hr_data) > 0
+    has_oura  = oura_hr_data is not None and len(oura_hr_data) > 0
+
+    # ann_paper_x/y: paper-coords for diff-plot stats label (top-right of each col)
+    # Row 2 paper y ≈ 0.62 (top of row 2 with 0.10 vspacing), cols at ~0.28/0.63/0.99
+    pairs = []
+    if has_ekg and has_apple:
+        pairs.append(dict(
+            ta=ekg_hr_df['time'].values, va=ekg_hr_df['hr_smooth'].values,
+            tb=apple_hr_data['time_seconds'].values, vb=apple_hr_data['value'].values,
+            color='#A55EEA', fill='rgba(165,94,234,0.18)',
+            colorscale='Viridis', xref_s='x5', yref_s='y5',
+            col=1, label_a='EKG', label_b='Apple Watch',
+            ann_paper_x=0.28, ann_paper_y=0.62,
+        ))
+    if has_ekg and has_oura:
+        pairs.append(dict(
+            ta=ekg_hr_df['time'].values, va=ekg_hr_df['hr_smooth'].values,
+            tb=oura_hr_data['time_seconds'].values, vb=oura_hr_data['value'].values,
+            color='#FD9644', fill='rgba(253,150,68,0.18)',
+            colorscale='Plasma', xref_s='x6', yref_s='y6',
+            col=2, label_a='EKG', label_b='Oura Ring',
+            ann_paper_x=0.63, ann_paper_y=0.62,
+        ))
+    if has_apple and has_oura:
+        pairs.append(dict(
+            ta=apple_hr_data['time_seconds'].values, vb=oura_hr_data['value'].values,
+            tb=oura_hr_data['time_seconds'].values, va=apple_hr_data['value'].values,
+            color='#26DE81', fill='rgba(38,222,129,0.18)',
+            colorscale='Cividis', xref_s='x7', yref_s='y7',
+            col=3, label_a='Apple Watch', label_b='Oura Ring',
+            ann_paper_x=0.99, ann_paper_y=0.62,
+        ))
+
+    _hr_pairwise_rows(fig, pairs, row_diff=2, row_scatter=3)
+
+    # ── Layout ────────────────────────────────────────────────────────────────
     fig.update_layout(
-        height=800,
-        title="Multi-Source Heart Rate Analysis During Gaming",
-        showlegend=True
+        height=1080,
+        title=dict(
+            text='Multi-Source Heart Rate Validation: EKG · Apple Watch · Oura Ring',
+            x=0.5, xanchor='center', font=dict(size=20, color='#2C3E50'),
+        ),
+        showlegend=True,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5),
+        hovermode='closest', template='plotly_white',
+        font=dict(family='Arial, sans-serif', size=11),
     )
-    
-    fig.update_xaxes(title_text="Time (seconds)", row=2, col=1)
-    fig.update_yaxes(title_text="Heart Rate (BPM)", row=1, col=1)
-    fig.update_yaxes(title_text="HR Difference (BPM)", row=2, col=1)
-    
+    fig.update_xaxes(title_text='Time (seconds)',       row=1, col=1, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='Time (s)',             row=2, col=1, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='Time (s)',             row=2, col=2, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='Time (s)',             row=2, col=3, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='EKG HR (BPM)',         row=3, col=1, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='EKG HR (BPM)',         row=3, col=2, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='Apple Watch HR (BPM)', row=3, col=3, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Heart Rate (BPM)',     row=1, col=1, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Diff (BPM)',           row=2, col=1, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Diff (BPM)',           row=2, col=2, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Diff (BPM)',           row=2, col=3, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Apple Watch HR (BPM)', row=3, col=1, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Oura Ring HR (BPM)',   row=3, col=2, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Oura Ring HR (BPM)',   row=3, col=3, gridcolor='#E8E8E8')
+
     return fig
+
+
+def create_multi_source_hr_plot_smoothed(ekg_hr_df, apple_hr_data, oura_hr_data, video_data,
+                                         ekg_ma_window=25, apple_ma_window=30):
+    """
+    Same 3-row layout as create_multi_source_hr_plot but with Moving Average smoothing.
+    Raw data shown as faint traces behind bold MA lines in the time series row.
+    Diff and scatter plots use the smoothed signals.
+
+    Parameters:
+    -----------
+    ekg_ma_window   : int  Rolling window (in beats) for EKG hr_smooth.
+    apple_ma_window : int  Rolling window (in samples) for Apple Watch BPM.
+    """
+    # ── Compute smoothed signals ──────────────────────────────────────────────
+    ekg_smooth = None
+    if ekg_hr_df is not None:
+        ekg_smooth = ekg_hr_df.copy()
+        ekg_smooth['hr_ma'] = (pd.Series(ekg_hr_df['hr_smooth'].values)
+                               .rolling(window=ekg_ma_window, center=True, min_periods=1)
+                               .mean().values)
+
+    apple_smooth = None
+    if apple_hr_data is not None:
+        apple_smooth = apple_hr_data.copy()
+        apple_smooth['value_ma'] = (pd.Series(apple_hr_data['value'].values)
+                                    .rolling(window=apple_ma_window, center=True, min_periods=1)
+                                    .mean().values)
+
+    oura_smooth = None
+    oura_ma_values = None
+    if oura_hr_data is not None and len(oura_hr_data) > 0:
+        oura_smooth = oura_hr_data.copy()
+        oura_ma_values = (pd.Series(oura_hr_data['value'].values)
+                          .rolling(window=5, center=True, min_periods=1)
+                          .mean().values)
+        oura_smooth['value_ma'] = oura_ma_values
+
+    # ── Build figure ──────────────────────────────────────────────────────────
+    fig = make_subplots(
+        rows=3, cols=3,
+        specs=[
+            [{"colspan": 3}, None, None],
+            [{}, {}, {}],
+            [{}, {}, {}],
+        ],
+        subplot_titles=[
+            f'EKG MA({ekg_ma_window}) · Apple Watch MA({apple_ma_window}) · Oura MA(5) — Time Series',
+            'EKG MA − Apple Watch MA', 'EKG MA − Oura MA', 'Apple Watch MA − Oura MA',
+            'EKG MA vs Apple Watch MA', 'EKG MA vs Oura MA', 'Apple Watch MA vs Oura MA',
+        ],
+        vertical_spacing=0.10,
+        horizontal_spacing=0.08,
+        row_heights=[0.36, 0.26, 0.38],
+    )
+
+    # ── Row 1: Time series (faint raw + bold MA) ──────────────────────────────
+    if ekg_smooth is not None:
+        fig.add_trace(go.Scatter(
+            x=ekg_smooth['time'], y=ekg_smooth['hr_smooth'],
+            mode='lines', name='EKG (raw)',
+            line=dict(color='#2E86DE', width=1), opacity=0.22, showlegend=True,
+        ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=ekg_smooth['time'], y=ekg_smooth['hr_ma'],
+            mode='lines', name=f'EKG MA({ekg_ma_window})',
+            line=dict(color='#2E86DE', width=2.5), opacity=1.0,
+        ), row=1, col=1)
+
+    if apple_smooth is not None:
+        fig.add_trace(go.Scatter(
+            x=apple_smooth['time_seconds'], y=apple_smooth['value'],
+            mode='markers', name='Apple Watch (raw)',
+            marker=dict(color='#EE5A6F', size=3), opacity=0.22, showlegend=True,
+        ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=apple_smooth['time_seconds'], y=apple_smooth['value_ma'],
+            mode='lines', name=f'Apple Watch MA({apple_ma_window})',
+            line=dict(color='#EE5A6F', width=2.5), opacity=1.0,
+        ), row=1, col=1)
+
+    if oura_smooth is not None:
+        fig.add_trace(go.Scatter(
+            x=oura_smooth['time_seconds'], y=oura_smooth['value'],
+            mode='markers', name='Oura Ring (raw)',
+            marker=dict(color='#26DE81', size=3), opacity=0.22, showlegend=True,
+        ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=oura_smooth['time_seconds'], y=oura_smooth['value_ma'],
+            mode='lines', name='Oura Ring MA(5)',
+            line=dict(color='#26DE81', width=2.5), opacity=1.0,
+        ), row=1, col=1)
+
+    if video_data is not None:
+        ev_colors = {'kill': '#A55EEA', 'death': '#2C3E50', 'assist': '#FD9644'}
+        for ev_type, color in ev_colors.items():
+            for t in video_data[video_data['action'] == ev_type]['time_seconds'].iloc[:10]:
+                fig.add_vline(x=t, line=dict(color=color, width=1, dash='dot'),
+                              opacity=0.5, row=1, col=1)
+
+    # ── Rows 2 & 3: All pairwise comparisons (using MA signals) ──────────────
+    has_ekg   = ekg_smooth is not None
+    has_apple = apple_smooth is not None
+    has_oura  = oura_smooth is not None
+
+    pairs = []
+    if has_ekg and has_apple:
+        pairs.append(dict(
+            ta=ekg_smooth['time'].values, va=ekg_smooth['hr_ma'],
+            tb=apple_smooth['time_seconds'].values, vb=apple_smooth['value_ma'],
+            color='#A55EEA', fill='rgba(165,94,234,0.18)',
+            colorscale='Viridis', xref_s='x5', yref_s='y5',
+            col=1, label_a=f'EKG MA({ekg_ma_window})', label_b=f'AW MA({apple_ma_window})',
+            ann_paper_x=0.28, ann_paper_y=0.62,
+        ))
+    if has_ekg and has_oura:
+        pairs.append(dict(
+            ta=ekg_smooth['time'].values, va=ekg_smooth['hr_ma'],
+            tb=oura_smooth['time_seconds'].values, vb=oura_smooth['value_ma'],
+            color='#FD9644', fill='rgba(253,150,68,0.18)',
+            colorscale='Plasma', xref_s='x6', yref_s='y6',
+            col=2, label_a=f'EKG MA({ekg_ma_window})', label_b='Oura MA(5)',
+            ann_paper_x=0.63, ann_paper_y=0.62,
+        ))
+    if has_apple and has_oura:
+        pairs.append(dict(
+            ta=apple_smooth['time_seconds'].values, va=apple_smooth['value_ma'],
+            tb=oura_smooth['time_seconds'].values, vb=oura_smooth['value_ma'],
+            color='#26DE81', fill='rgba(38,222,129,0.18)',
+            colorscale='Cividis', xref_s='x7', yref_s='y7',
+            col=3, label_a=f'AW MA({apple_ma_window})', label_b='Oura MA(5)',
+            ann_paper_x=0.99, ann_paper_y=0.62,
+        ))
+
+    _hr_pairwise_rows(fig, pairs, row_diff=2, row_scatter=3)
+
+    # ── Layout ────────────────────────────────────────────────────────────────
+    fig.update_layout(
+        height=1080,
+        title=dict(
+            text=f'Multi-Source HR Validation (Smoothed) — EKG MA({ekg_ma_window}) · Apple Watch MA({apple_ma_window}) · Oura MA(5)',
+            x=0.5, xanchor='center', font=dict(size=18, color='#2C3E50'),
+        ),
+        showlegend=True,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5),
+        hovermode='closest', template='plotly_white',
+        font=dict(family='Arial, sans-serif', size=11),
+    )
+    fig.update_xaxes(title_text='Time (seconds)',       row=1, col=1, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='Time (s)',             row=2, col=1, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='Time (s)',             row=2, col=2, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text='Time (s)',             row=2, col=3, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text=f'EKG MA({ekg_ma_window}) HR (BPM)',    row=3, col=1, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text=f'EKG MA({ekg_ma_window}) HR (BPM)',    row=3, col=2, gridcolor='#E8E8E8')
+    fig.update_xaxes(title_text=f'AW MA({apple_ma_window}) HR (BPM)',   row=3, col=3, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Heart Rate (BPM)',     row=1, col=1, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Diff (BPM)',           row=2, col=1, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Diff (BPM)',           row=2, col=2, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Diff (BPM)',           row=2, col=3, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text=f'AW MA({apple_ma_window}) HR (BPM)',   row=3, col=1, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Oura MA(5) HR (BPM)', row=3, col=2, gridcolor='#E8E8E8')
+    fig.update_yaxes(title_text='Oura MA(5) HR (BPM)', row=3, col=3, gridcolor='#E8E8E8')
+
+    return fig
+
 
 # Note: This comparison will be done after EKG analysis when hr_df is available
 
@@ -402,7 +776,7 @@ SECTION 2: EKG ANALYSIS USING EXISTING ANALYZER METHODS
 =======================================================
 """
 
-print("💓 Comprehensive EKG analysis using existing analyzer methods...")
+print("Comprehensive EKG analysis using existing analyzer methods...")
 
 if ekg_data is not None:
     try:
@@ -421,7 +795,7 @@ if ekg_data is not None:
         hrv_score = ekg_data.EKG.hr_variability_score
         rhythm_type = ekg_data.EKG.rhythm_type
         
-        print(f"📊 Heart Rate Metrics (using existing analyzer):")
+        print(f"Heart Rate Metrics (using existing analyzer):")
         print(f"   Average HR: {mean_hr:.1f} BPM")
         print(f"   RMSSD: {rmssd:.1f} ms")
         print(f"   SDNN: {sdnn:.1f} ms") 
@@ -450,7 +824,7 @@ if ekg_data is not None:
             if len(hr_df) > 0:
                 # Apply smoothing to heart rate using existing moving average method
                 hr_df['hr_smooth'] = hr_df['hr_instant'].rolling(window=5, center=True).mean()
-                print(f"📈 Heart rate time series: {len(hr_df)} beat intervals")
+                print(f"Heart rate time series: {len(hr_df)} beat intervals")
                 print(f"   HR range: {hr_df['hr_instant'].min():.1f} - {hr_df['hr_instant'].max():.1f} BPM")
             else:
                 print("⚠️ Could not create heart rate time series")
@@ -463,7 +837,7 @@ if ekg_data is not None:
         # Get frequency domain analysis using existing method
         try:
             freq_analysis = ekg_data.EKG.calculate_frequency_domain_hrv()
-            print(f"🔊 Frequency Domain HRV:")
+            print(f"Frequency Domain HRV:")
             print(f"   LF Power: {freq_analysis['LF']:.1f}")
             print(f"   HF Power: {freq_analysis['HF']:.1f}")
             print(f"   LF/HF Ratio: {freq_analysis['LF_HF_ratio']:.2f}")
@@ -474,15 +848,15 @@ if ekg_data is not None:
         # Get comprehensive health summary
         try:
             health_summary = ekg_data.EKG.get_heart_analysis_summary()
-            print(f"🏥 Health Summary: {health_summary}")
+            print(f"Health Summary: {health_summary}")
         except Exception as e:
             print(f"⚠️ Could not get health summary: {e}")
         
         # Display the existing analyzer plots for comparison
-        print("\n📊 Using existing EKG analyzer visualization methods:")
+        print("\nUsing existing EKG analyzer visualization methods:")
         
         try:
-            print("🔍 Showing EKG data with properly detected peaks, low peaks, and beats...")
+            print("Showing EKG data with properly detected peaks, low peaks, and beats...")
             # Use the existing plot method and save it
             ekg_plot_fig = ekg_data.EKG.plot_ekg_data()
             if hasattr(ekg_plot_fig, 'write_html'):
@@ -492,7 +866,7 @@ if ekg_data is not None:
             print(f"⚠️ Could not show/save EKG plot: {e}")
         
         try:
-            print("💓 Showing moving average BPM over time...")
+            print("Showing moving average BPM over time...")
             # Use the existing BPM plot method and save it
             bpm_plot_fig = ekg_data.EKG.plot_moving_avg_bpm(window_size=10)
             if hasattr(bpm_plot_fig, 'write_html'):
@@ -520,19 +894,31 @@ SECTION 2.5: EXECUTE MULTI-SOURCE HEART RATE COMPARISON
 """
 
 # Perform multi-source comparison now that hr_df is available
-hr_comparison = compare_hr_sources(hr_df, apple_hr_data, video_data)
+hr_comparison = compare_hr_sources(hr_df, apple_hr_data, oura_hr_data, video_data)
 
 # Create multi-source comparison plot
 try:
-    multi_source_fig = create_multi_source_hr_plot(hr_df, apple_hr_data, video_data)
+    multi_source_fig = create_multi_source_hr_plot(hr_df, apple_hr_data, oura_hr_data, video_data)
     multi_source_fig.show()
     
     # Save the plot
     multi_source_fig.write_html(output_dir / "multi_source_hr_comparison.html")
-    print(f"💾 Multi-source HR comparison saved to: {output_dir / 'multi_source_hr_comparison.html'}")
+    print(f"Multi-source HR comparison saved to: {output_dir / 'multi_source_hr_comparison.html'}")
     
 except Exception as e:
-    print(f"⚠️ Could not create multi-source plot: {e}")
+    print(f"[WARNING] Could not create multi-source plot: {e}")
+
+# Create smoothed MA version (EKG MA=15 beats, Apple Watch MA=30 samples)
+try:
+    multi_source_smoothed_fig = create_multi_source_hr_plot_smoothed(
+        hr_df, apple_hr_data, oura_hr_data, video_data,
+        ekg_ma_window=60, apple_ma_window=30
+    )
+    multi_source_smoothed_fig.show()
+    multi_source_smoothed_fig.write_html(output_dir / "multi_source_hr_comparison_smoothed.html")
+    print(f"Smoothed multi-source HR comparison saved to: {output_dir / 'multi_source_hr_comparison_smoothed.html'}")
+except Exception as e:
+    print(f"[WARNING] Could not create smoothed multi-source plot: {e}")
 
 # %%
 """
@@ -540,7 +926,7 @@ SECTION 3: GAMING EVENTS IMPACT ON HEART RATE (MULTIPLE TIME WINDOWS)
 ======================================================================
 """
 
-print("🎯 Analyzing gaming event impact on heart rate with multiple time windows...")
+print("Analyzing gaming event impact on heart rate with multiple time windows...")
 
 def analyze_hr_around_events_multi_window(hr_df, video_df, event_type, windows=[5, 15, 30]):
     """
@@ -611,13 +997,13 @@ key_events = ['kill', 'death', 'match_start', 'round_start', 'perk_activation', 
 event_analysis = {}
 
 if hr_df is not None and video_data is not None:
-    print("🔗 Analyzing HR response to gaming events with multiple time windows...")
+    print("Analyzing HR response to gaming events with multiple time windows...")
     
     for event in key_events:
         analysis = analyze_hr_around_events_multi_window(hr_df, video_data, event)
         if analysis is not None:
             event_analysis[event] = analysis
-            print(f"\n⚔️ {event.upper()} Events:")
+            print(f"\n{event.upper()} Events:")
             for window, data in analysis.items():
                 significance = "✅ SIGNIFICANT" if data['significant'] else "⚪ Not significant"
                 print(f"   {window} window: {data['mean_change']:+.1f} BPM change (n={data['sample_size']}) {significance}")
@@ -628,7 +1014,7 @@ SECTION 4: STRESS/EXCITEMENT DETECTION AND GAMING SCENARIOS
 ===========================================================
 """
 
-print("😰 Advanced stress/excitement detection during gaming...")
+print("Advanced stress and excitement detection during gaming...")
 
 def detect_stress_periods_advanced(hr_df, ekg_data, percentile_threshold=75, duration_threshold=10):
     """
@@ -646,14 +1032,14 @@ def detect_stress_periods_advanced(hr_df, ekg_data, percentile_threshold=75, dur
         stress_index = ekg_data.EKG.stress_index
         rmssd = ekg_data.EKG.rmssd
         
-        print(f"💓 Baseline HR: {baseline_hr:.1f} BPM")
-        print(f"🚨 Stress threshold: {threshold_hr:.1f} BPM")
-        print(f"😰 Overall stress index: {stress_index:.1f}/100")
-        print(f"💓 RMSSD (relaxation): {rmssd:.1f} ms")
+        print(f"Baseline HR: {baseline_hr:.1f} BPM")
+        print(f"Stress threshold: {threshold_hr:.1f} BPM")
+        print(f"Overall stress index: {stress_index:.1f}/100")
+        print(f"RMSSD (relaxation): {rmssd:.1f} ms")
         
         # Classify stress levels
         stress_classification = "Low" if stress_index < 50 else "Moderate" if stress_index < 75 else "High"
-        print(f"🎯 Overall stress level: {stress_classification}")
+        print(f"Overall stress level: {stress_classification}")
         
     except Exception as e:
         print(f"⚠️ Could not get stress metrics: {e}")
@@ -670,12 +1056,12 @@ def detect_stress_periods_advanced(hr_df, ekg_data, percentile_threshold=75, dur
                                            bins=[0, 10, 20, 100], 
                                            labels=['Mild', 'Moderate', 'High'])
         
-        print(f"⚡ Found {len(stress_periods)} high-intensity moments")
-        print(f"🔥 Max stress level: +{stress_periods['stress_level'].max():.1f}% above baseline")
+        print(f"Found {len(stress_periods)} high-intensity moments")
+        print(f"Max stress level: +{stress_periods['stress_level'].max():.1f}% above baseline")
         
         # Analyze intensity distribution
         intensity_counts = stress_periods['intensity'].value_counts()
-        print(f"📊 Stress intensity distribution:")
+        print(f"Stress intensity distribution:")
         for intensity, count in intensity_counts.items():
             print(f"   {intensity}: {count} moments")
         
@@ -711,13 +1097,13 @@ def correlate_stress_with_events(stress_periods, video_data, tolerance=5):
     
     if correlations:
         corr_df = pd.DataFrame(correlations)
-        print(f"\n🔗 Found {len(corr_df)} stress-event correlations:")
+        print(f"\nFound {len(corr_df)} stress-event correlations:")
         
         # Analyze which events correlate with stress
         event_stress = corr_df.groupby('event_type')['stress_level'].agg(['mean', 'count', 'std']).round(2)
         event_stress = event_stress.sort_values('mean', ascending=False)
         
-        print("📊 Events correlated with highest stress:")
+        print("Events correlated with highest stress:")
         for event_type, data in event_stress.head().iterrows():
             print(f"   {event_type}: {data['mean']:.1f}% stress (n={data['count']})")
         
@@ -743,7 +1129,7 @@ SECTION 5: ENHANCED CONTROLLER INPUT ANALYSIS WITH CLICKS PER SECOND
 ====================================================================
 """
 
-print("🎮 Enhanced controller input analysis with clicks per second correlation...")
+print("Enhanced controller input analysis with clicks per second correlation...")
 
 def analyze_controller_inputs_comprehensive(controller_data, hr_df, apple_hr_data=None, window_size=5):
     """
@@ -753,7 +1139,7 @@ def analyze_controller_inputs_comprehensive(controller_data, hr_df, apple_hr_dat
     if controller_data is None or hr_df is None:
         return None
     
-    print(f"📋 Available controller columns: {list(controller_data.columns)}")
+    print(f"Available controller columns: {list(controller_data.columns)}")
     
     # Identify button/action columns
     button_columns = []
@@ -766,8 +1152,8 @@ def analyze_controller_inputs_comprehensive(controller_data, hr_df, apple_hr_dat
         elif any(keyword in col_lower for keyword in ['action', 'input', 'event', 'command']):
             action_columns.append(col)
     
-    print(f"🎯 Button columns found: {button_columns}")
-    print(f"⚡ Action columns found: {action_columns}")
+    print(f"Button columns found: {button_columns}")
+    print(f"Action columns found: {action_columns}")
     
     # Calculate clicks per second in sliding windows
     clicks_analysis = []
@@ -859,7 +1245,7 @@ def analyze_controller_inputs_comprehensive(controller_data, hr_df, apple_hr_dat
     
     clicks_df = pd.DataFrame(clicks_analysis)
     
-    print(f"📊 Clicks analysis: {len(clicks_df)} time windows")
+    print(f"Clicks analysis: {len(clicks_df)} time windows")
     print(f"   Max clicks/sec: {clicks_df['clicks_per_second'].max():.2f}")
     print(f"   Avg clicks/sec: {clicks_df['clicks_per_second'].mean():.2f}")
     print(f"   Max intensity: {clicks_df['intensity_score'].max():.2f}")
@@ -872,7 +1258,7 @@ def analyze_controller_inputs_comprehensive(controller_data, hr_df, apple_hr_dat
     if apple_hr_data is not None:
         hr_metrics.append('heart_rate_apple')
     
-    print(f"\n🔗 Clicks per Second vs Heart Rate Correlations:")
+    print(f"\nClicks per Second vs Heart Rate Correlations:")
     
     for input_metric in input_metrics:
         for hr_metric in hr_metrics:
@@ -904,39 +1290,36 @@ def analyze_controller_inputs_comprehensive(controller_data, hr_df, apple_hr_dat
         if len(valid_hr_comparison) > 2:
             hr_source_correlation = valid_hr_comparison['heart_rate_ekg_smooth'].corr(valid_hr_comparison['heart_rate_apple'])
             correlations['ekg_vs_apple_hr'] = hr_source_correlation
-            print(f"\n💓 Heart Rate Source Comparison:")
+            print(f"\nHeart Rate Source Comparison:")
             print(f"   EKG vs Apple Watch HR correlation: {hr_source_correlation:.3f}")
     
     # Create enhanced clicks per second plot with multi-source heart rate overlay
     try:
-        # Determine number of plots based on available data
-        n_plots = 3 if apple_hr_data is None else 4
+        # Simplified layout - 2 rows only to reduce overcrowding
         subplot_titles = [
-            'Clicks per Second vs Heart Rate Over Time',
-            'Button Clicks vs Heart Rate Correlation',
+            'Controller Input Activity vs Heart Rate Over Time',
             'Input Intensity vs Heart Rate Correlation'
         ]
-        if apple_hr_data is not None:
-            subplot_titles.append('Multi-Source Heart Rate Comparison')
         
         fig_clicks = make_subplots(
-            rows=n_plots, cols=1,
+            rows=2, cols=1,
             subplot_titles=subplot_titles,
-            specs=[[{"secondary_y": True}]] + [[{"secondary_y": False}]] * (n_plots-1),
-            vertical_spacing=0.08
+            specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
+            vertical_spacing=0.15,
+            row_heights=[0.6, 0.4]
         )
         
-        # Plot 1: Time series with dual y-axes
+        # Plot 1: Time series with dual y-axes (simplified)
         fig_clicks.add_trace(
             go.Scatter(
                 x=clicks_df['time'],
                 y=clicks_df['clicks_per_second'],
                 mode='lines+markers',
                 name='Clicks/Second',
-                line=dict(color='blue', width=2),
-                marker=dict(size=4)
+                line=dict(color='#2E86DE', width=2.5),
+                marker=dict(size=5, symbol='circle')
             ),
-            row=1, col=1
+            row=1, col=1, secondary_y=False
         )
         
         fig_clicks.add_trace(
@@ -944,120 +1327,70 @@ def analyze_controller_inputs_comprehensive(controller_data, hr_df, apple_hr_dat
                 x=clicks_df['time'],
                 y=clicks_df['heart_rate_ekg_smooth'],
                 mode='lines',
-                name='Heart Rate EKG (BPM)',
-                line=dict(color='red', width=2),
-                yaxis='y2'
+                name='Heart Rate (BPM)',
+                line=dict(color='#EE5A6F', width=2.5)
             ),
             row=1, col=1, secondary_y=True
         )
         
-        # Add Apple Watch heart rate if available
-        if apple_hr_data is not None:
-            fig_clicks.add_trace(
-                go.Scatter(
-                    x=clicks_df['time'],
-                    y=clicks_df['heart_rate_apple'],
-                    mode='lines',
-                    name='Heart Rate Apple (BPM)',
-                    line=dict(color='orange', width=2, dash='dash'),
-                    yaxis='y2'
-                ),
-                row=1, col=1, secondary_y=True
-            )
-        
-        # Plot 2: Scatter plot - clicks vs EKG HR
+        # Plot 2: Comprehensive scatter plot showing all correlations
         fig_clicks.add_trace(
             go.Scatter(
                 x=clicks_df['clicks_per_second'],
                 y=clicks_df['heart_rate_ekg_smooth'],
                 mode='markers',
-                name='Clicks vs EKG HR',
+                name='Clicks vs HR',
                 marker=dict(
                     color=clicks_df['intensity_score'],
-                    colorscale='Viridis',
-                    size=8,
-                    colorbar=dict(title="Intensity")
-                )
+                    colorscale='Turbo',
+                    size=10,
+                    showscale=True,
+                    colorbar=dict(
+                        title=dict(text="Intensity<br>Score", side='right'),
+                        x=1.12
+                    ),
+                    line=dict(width=0.5, color='white')
+                ),
+                text=[f'Time: {t:.0f}s<br>Intensity: {i:.2f}<br>Diversity: {d:.2f}' 
+                      for t, i, d in zip(clicks_df['time'], clicks_df['intensity_score'], clicks_df['action_diversity'])],
+                hovertemplate='Clicks/sec: %{x:.2f}<br>HR: %{y:.1f} BPM<br>%{text}<extra></extra>'
             ),
             row=2, col=1
         )
         
-        # Plot 3: Scatter plot - intensity vs EKG HR
-        fig_clicks.add_trace(
-            go.Scatter(
-                x=clicks_df['intensity_score'],
-                y=clicks_df['heart_rate_ekg_smooth'],
-                mode='markers',
-                name='Intensity vs EKG HR',
-                marker=dict(
-                    color=clicks_df['action_diversity'],
-                    colorscale='Plasma',
-                    size=8,
-                    colorbar=dict(title="Diversity")
-                )
-            ),
-            row=3, col=1
-        )
-        
-        # Plot 4: Multi-source heart rate comparison if Apple Watch data available
-        if apple_hr_data is not None:
-            valid_hr_data = clicks_df[['heart_rate_ekg_smooth', 'heart_rate_apple']].dropna()
-            if len(valid_hr_data) > 0:
-                fig_clicks.add_trace(
-                    go.Scatter(
-                        x=valid_hr_data['heart_rate_ekg_smooth'],
-                        y=valid_hr_data['heart_rate_apple'],
-                        mode='markers',
-                        name='EKG vs Apple HR',
-                        marker=dict(
-                            color='purple',
-                            size=8
-                        )
-                    ),
-                    row=4, col=1
-                )
-                
-                # Add diagonal reference line
-                hr_min = min(valid_hr_data['heart_rate_ekg_smooth'].min(), valid_hr_data['heart_rate_apple'].min())
-                hr_max = max(valid_hr_data['heart_rate_ekg_smooth'].max(), valid_hr_data['heart_rate_apple'].max())
-                fig_clicks.add_trace(
-                    go.Scatter(
-                        x=[hr_min, hr_max],
-                        y=[hr_min, hr_max],
-                        mode='lines',
-                        name='Perfect Agreement',
-                        line=dict(color='gray', dash='dash'),
-                        showlegend=False
-                    ),
-                    row=4, col=1
-                )
-        
-        # Update layout
+        # Update layout with cleaner design
         fig_clicks.update_layout(
-            height=300 * n_plots,
-            title="Comprehensive Multi-Source Controller Input Analysis",
-            showlegend=True
+            height=800,
+            title={
+                'text': "Controller Input Activity vs Heart Rate Analysis",
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 18}
+            },
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5
+            ),
+            template='plotly_white'
         )
         
-        # Update axes
-        fig_clicks.update_xaxes(title_text="Time (seconds)", row=1, col=1)
-        fig_clicks.update_xaxes(title_text="Clicks per Second", row=2, col=1)
-        fig_clicks.update_xaxes(title_text="Intensity Score", row=3, col=1)
-        if apple_hr_data is not None:
-            fig_clicks.update_xaxes(title_text="EKG Heart Rate (BPM)", row=4, col=1)
+        # Update axes with clear labels
+        fig_clicks.update_xaxes(title_text="Time (seconds)", row=1, col=1, gridcolor='lightgray')
+        fig_clicks.update_xaxes(title_text="Clicks per Second", row=2, col=1, gridcolor='lightgray')
         
-        fig_clicks.update_yaxes(title_text="Clicks/Second", row=1, col=1)
-        fig_clicks.update_yaxes(title_text="Heart Rate (BPM)", row=1, col=1, secondary_y=True)
-        fig_clicks.update_yaxes(title_text="Heart Rate (BPM)", row=2, col=1)
-        fig_clicks.update_yaxes(title_text="Heart Rate (BPM)", row=3, col=1)
-        if apple_hr_data is not None:
-            fig_clicks.update_yaxes(title_text="Apple Watch Heart Rate (BPM)", row=4, col=1)
+        fig_clicks.update_yaxes(title_text="Clicks/Second", row=1, col=1, secondary_y=False, gridcolor='lightgray')
+        fig_clicks.update_yaxes(title_text="Heart Rate (BPM)", row=1, col=1, secondary_y=True, gridcolor='lightgray')
+        fig_clicks.update_yaxes(title_text="Heart Rate (BPM)", row=2, col=1, gridcolor='lightgray')
         
         # Save the plot
         fig_clicks.write_html(output_dir / "controller_clicks_multisource_analysis.html")
         fig_clicks.show()
         
-        print(f"✅ Multi-source controller clicks analysis saved to: {output_dir / 'controller_clicks_multisource_analysis.html'}")
+        print(f"[OK] Controller input vs heart rate analysis saved to: {output_dir / 'controller_clicks_multisource_analysis.html'}")
         
     except Exception as e:
         print(f"⚠️ Could not create clicks analysis plot: {e}")
@@ -1073,12 +1406,12 @@ if controller_data is not None and hr_df is not None:
     controller_clicks_analysis = analyze_controller_inputs_comprehensive(controller_data, hr_df, apple_hr_data)
     
     if controller_clicks_analysis:
-        print(f"🎮 Enhanced controller analysis: {controller_clicks_analysis['summary']}")
+        print(f"Enhanced controller analysis: {controller_clicks_analysis['summary']}")
     else:
         print("⚠️ Could not complete enhanced controller analysis")
 else:
     controller_clicks_analysis = None
-    print("⚠️ No controller data or heart rate data available for enhanced analysis")
+    print("[WARNING] No controller data or heart rate data available for enhanced analysis")
 
 # %%
 
@@ -1104,10 +1437,10 @@ def calculate_input_intensity_advanced(controller_data, window_size=30):
     
     if not input_columns:
         print("⚠️ No recognizable input columns found")
-        print(f"📋 Available columns: {list(controller_data.columns)}")
+        print(f"Available columns: {list(controller_data.columns)}")
         return None
     
-    print(f"📋 Using input columns: {input_columns}")
+    print(f"Using input columns: {input_columns}")
     
     # Calculate rolling input intensity
     intensity_data = []
@@ -1214,9 +1547,9 @@ def correlate_intensity_with_physiology(intensity_df, hr_df, stress_periods):
     # Statistical significance testing
     for metric, corr in correlations.items():
         if abs(corr) > 0.3:  # Moderate correlation
-            print(f"📈 {metric} vs HR: correlation = {corr:.3f} (moderate)")
+            print(f"{metric} vs HR: correlation = {corr:.3f} (moderate)")
         elif abs(corr) > 0.1:
-            print(f"📊 {metric} vs HR: correlation = {corr:.3f} (weak)")
+            print(f"{metric} vs HR: correlation = {corr:.3f} (weak)")
         else:
             print(f"⚪ {metric} vs HR: correlation = {corr:.3f} (negligible)")
     
@@ -1232,14 +1565,14 @@ if controller_data is not None:
     
     if intensity_df is not None and not intensity_df.empty:
         intensity_correlation = correlate_intensity_with_physiology(intensity_df, hr_df, stress_periods)
-        print(f"🎮 Input intensity analysis: {len(intensity_df)} time windows analyzed")
+        print(f"Input intensity analysis: {len(intensity_df)} time windows analyzed")
     else:
         intensity_correlation = None
         print("⚠️ Could not calculate input intensity")
 else:
     intensity_df = None
     intensity_correlation = None
-    print("⚠️ No controller data available for intensity analysis")
+    print("[WARNING] No controller data available for intensity analysis")
 
 # %%
 """
@@ -1247,7 +1580,7 @@ SECTION 6: PERFORMANCE VS PHYSIOLOGICAL STATE ANALYSIS
 ======================================================
 """
 
-print("🏆 Analyzing gaming performance vs physiological state...")
+print("Analyzing gaming performance vs physiological state...")
 
 def analyze_performance_physiology_advanced(video_data, hr_df, stress_periods, window_size=60):
     """
@@ -1338,7 +1671,7 @@ def analyze_performance_physiology_advanced(video_data, hr_df, stress_periods, w
     performance_metrics = ['kd_ratio', 'performance_score', 'action_rate']
     physiology_metrics = ['avg_heart_rate', 'hr_variability', 'stress_moments']
     
-    print("🔗 Performance vs Physiology Correlations:")
+    print("Performance vs Physiology Correlations:")
     
     for perf_metric in performance_metrics:
         for phys_metric in physiology_metrics:
@@ -1370,12 +1703,12 @@ if video_data is not None and hr_df is not None:
     performance_analysis = analyze_performance_physiology_advanced(video_data, hr_df, stress_periods)
     
     if performance_analysis is not None:
-        print(f"🏆 Performance analysis: {performance_analysis['summary']}")
+        print(f"Performance analysis: {performance_analysis['summary']}")
     else:
         print("⚠️ Could not complete performance analysis")
 else:
     performance_analysis = None
-    print("⚠️ Insufficient data for performance analysis")
+    print("[WARNING] Insufficient data for performance analysis")
 
 # %%
 """
@@ -1383,49 +1716,44 @@ SECTION 7: COMPREHENSIVE MULTIMODAL VISUALIZATION
 =================================================
 """
 
-print("📊 Creating comprehensive multimodal visualization dashboard...")
+print("Creating comprehensive multimodal visualization dashboard...")
 
 def create_comprehensive_dashboard(ekg_data, hr_df, video_data, stress_periods, event_analysis, 
                                  intensity_df, performance_analysis):
     """
     Create a comprehensive dashboard with multiple synchronized visualizations.
+    Only includes plots for available data sources.
     """
     
-    # Create subplots with custom layout
+    # Create subplots with improved layout - 3 rows, full width for better visibility
     fig = make_subplots(
-        rows=5, cols=2,
+        rows=3, cols=1,
         subplot_titles=[
-            'Raw EKG Signal with Properly Detected Peaks & Beats', 'Heart Rate (BPM) Over Time',
-            'Heart Rate Timeline with Gaming Events', 'Event-Triggered HR Changes (Multiple Windows)', 
-            'Stress Periods and Gaming Performance', 'Controller Input Intensity vs Heart Rate',
-            'Performance Metrics Over Time', 'Event Correlation Summary'
+            'Heart Rate Over Time with Gaming Events',
+            'Heart Rate Response to Key Gaming Events',
+            'Performance and Physiological Correlation'
         ],
         specs=[
-            [{"colspan": 2}, None],
-            [{"colspan": 2}, None],
-            [{"secondary_y": True}, {"secondary_y": True}],
-            [{"secondary_y": True}, {"secondary_y": True}],
-            [{"secondary_y": False}, {"secondary_y": False}]
+            [{"secondary_y": False}],
+            [{"secondary_y": False}],
+            [{"secondary_y": True}]
         ],
-        vertical_spacing=0.06,
-        row_heights=[0.2, 0.2, 0.2, 0.2, 0.2]
+        vertical_spacing=0.12,
+        row_heights=[0.35, 0.35, 0.30]
     )
     
-    # Plot 1: Raw EKG with properly detected peaks, low peaks, and beats
-    # Use the same approach as the original EKG analyzer
-    if ekg_data is not None and peaks is not None:
-        # Sample data for visualization (every 10th point to avoid overplotting)
-        sample_indices = np.arange(0, len(ekg_data), 10)
-        
-        # Raw EKG signal - use original column names like the analyzer does
+    # Plot 1: Heart Rate Timeline with Gaming Events
+    if hr_df is not None and len(hr_df) > 0:
+        # Heart rate over time
         fig.add_trace(
             go.Scatter(
-                x=ekg_data['Timestamp'].iloc[sample_indices],
-                y=ekg_data['HeartSignal'].iloc[sample_indices],
+                x=hr_df['time'],
+                y=hr_df['hr_smooth'],
                 mode='lines',
-                name='Raw EKG Signal',
-                line=dict(color='blue', width=1),
-                opacity=0.7
+                name='Heart Rate (Smoothed)',
+                line=dict(color='rgb(220, 53, 69)', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(220, 53, 69, 0.1)'
             ),
             row=1, col=1
         )
@@ -1654,36 +1982,134 @@ def create_comprehensive_dashboard(ekg_data, hr_df, video_data, stress_periods, 
     
     # Update layout
     fig.update_layout(
-        height=1400,
-        title="Comprehensive Multimodal Gaming Health Analysis Dashboard<br><sub>EKG plot uses same scale and method as original EKG analyzer</sub>",
+        height=1200,
+        title={
+            'text': "Multimodal Gaming Health Analysis Dashboard",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 24, 'color': '#2c3e50'}
+        },
         showlegend=True,
-        hovermode='x unified'
+        hovermode='x unified',
+        template='plotly_white',
+        font=dict(family="Arial, sans-serif", size=12)
     )
     
     # Update axes labels
-    fig.update_xaxes(title_text="Time (seconds)", row=5, col=1)
-    fig.update_xaxes(title_text="Time (seconds)", row=5, col=2)
-    fig.update_yaxes(title_text="Heart Signal (mV)", row=1, col=1)
-    fig.update_yaxes(title_text="BPM", row=2, col=1)
-    fig.update_yaxes(title_text="Heart Rate (BPM)", row=3, col=1)
-    fig.update_yaxes(title_text="HR Change (BPM)", row=3, col=2)
-    fig.update_yaxes(title_text="Stress Level (%)", row=4, col=1)
-    fig.update_yaxes(title_text="Heart Rate (BPM)", row=4, col=2)
-    fig.update_yaxes(title_text="K/D Ratio", row=5, col=1)
-    fig.update_yaxes(title_text="Performance Score", row=5, col=2)
+    fig.update_xaxes(title_text="Time (seconds)", row=1, col=1)
+    fig.update_xaxes(title_text="Gaming Events", row=2, col=1)
+    fig.update_xaxes(title_text="Time (seconds)", row=3, col=1)
+    
+    fig.update_yaxes(title_text="Heart Rate (BPM)", row=1, col=1)
+    fig.update_yaxes(title_text="HR Change (BPM)", row=2, col=1)
+    fig.update_yaxes(title_text="K/D Ratio", row=3, col=1)
+    fig.update_yaxes(title_text="Heart Rate (BPM)", row=3, col=1, secondary_y=True)
     
     return fig
 
 # Create the comprehensive dashboard
 try:
-    dashboard_fig = create_comprehensive_dashboard(
-        ekg_data, hr_df, video_data, stress_periods, 
-        event_analysis, intensity_df, performance_analysis
-    )
-    dashboard_fig.show()
-    print("✅ Comprehensive dashboard created successfully!")
+    # Create a simpler, cleaner dashboard
+    from plotly.subplots import make_subplots
+    
+    # Determine how many plots we can create
+    has_hr = hr_df is not None and len(hr_df) > 0
+    has_events = video_data is not None and len(video_data) > 0
+    has_perf = performance_analysis is not None and 'data' in performance_analysis and not performance_analysis['data'].empty
+    
+    if has_hr:
+        dashboard_fig = make_subplots(
+            rows=2, cols=1,
+            subplot_titles=['Heart Rate Over Time with Gaming Events', 'Performance Metrics'],
+            vertical_spacing=0.15,
+            specs=[[{"secondary_y": False}], [{"secondary_y": True}]]
+        )
+        
+        # Plot 1: Heart Rate
+        dashboard_fig.add_trace(
+            go.Scatter(
+                x=hr_df['time'],
+                y=hr_df['hr_smooth'],
+                mode='lines',
+                name='Heart Rate',
+                line=dict(color='rgb(220, 53, 69)', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(220, 53, 69, 0.1)'
+            ),
+            row=1, col=1
+        )
+        
+        # Add mean HR line
+        if mean_hr:
+            dashboard_fig.add_hline(
+                y=mean_hr,
+                line_dash="dash",
+                line_color="green",
+                annotation_text=f"Mean: {mean_hr:.1f} BPM",
+                row=1, col=1
+            )
+        
+        # Add events if available
+        if has_events:
+            event_colors = {'kill': 'rgba(40, 167, 69, 0.3)', 'death': 'rgba(220, 53, 69, 0.3)', 
+                           'round_start': 'rgba(0, 123, 255, 0.2)'}
+            for event_type, color in event_colors.items():
+                events = video_data[video_data['action'] == event_type]['time_seconds'].values
+                for event_time in events[:30]:  # Limit for clarity
+                    dashboard_fig.add_vline(x=event_time, line_color=color, line_width=1, row=1, col=1)
+        
+        # Plot 2: Performance
+        if has_perf:
+            perf_data = performance_analysis['data']
+            # Check what columns actually exist
+            time_col = 'time' if 'time' in perf_data.columns else 'time_window'
+            
+            dashboard_fig.add_trace(
+                go.Scatter(
+                    x=perf_data[time_col],
+                    y=perf_data['kd_ratio'],
+                    mode='lines+markers',
+                    name='K/D Ratio',
+                    line=dict(color='rgb(0, 123, 255)', width=2)
+                ),
+                row=2, col=1
+            )
+            
+            dashboard_fig.add_trace(
+                go.Scatter(
+                    x=perf_data[time_col],
+                    y=perf_data['avg_heart_rate'],
+                    mode='lines',
+                    name='Avg HR',
+                    line=dict(color='rgb(220, 53, 69)', width=2, dash='dash'),
+                    yaxis='y2'
+                ),
+                row=2, col=1,
+                secondary_y=True
+            )
+        
+        dashboard_fig.update_layout(
+            height=900,
+            title={'text': 'Gaming Health Analysis Dashboard', 'x': 0.5, 'xanchor': 'center'},
+            template='plotly_white',
+            showlegend=True
+        )
+        
+        dashboard_fig.update_xaxes(title_text="Time (seconds)", row=1, col=1)
+        dashboard_fig.update_xaxes(title_text="Time (seconds)", row=2, col=1)
+        dashboard_fig.update_yaxes(title_text="Heart Rate (BPM)", row=1, col=1)
+        dashboard_fig.update_yaxes(title_text="K/D Ratio", row=2, col=1)
+        dashboard_fig.update_yaxes(title_text="Heart Rate (BPM)", row=2, col=1, secondary_y=True)
+        
+        dashboard_fig.show()
+        print("[OK] Dashboard created successfully!")
+    else:
+        print("[WARNING] Insufficient data for dashboard creation")
+        
 except Exception as e:
-    print(f"⚠️ Could not create full dashboard: {e}")
+    print(f"[WARNING] Could not create dashboard: {e}")
+    import traceback
+    traceback.print_exc()
 
 # %%
 """
@@ -1691,75 +2117,103 @@ SECTION 8: STATISTICAL SUMMARY AND CORRELATION MATRIX
 =====================================================
 """
 
-print("📈 Creating comprehensive statistical summary and correlation matrix...")
+print("Creating comprehensive statistical summary and correlation matrix...")
 
 def create_comprehensive_correlation_matrix():
     """
     Create a comprehensive correlation matrix from all available data.
+    Handles time-aligned data properly to avoid NaN correlations.
     """
     correlation_data = {}
     
-    # EKG-derived metrics
-    if ekg_data is not None:
-        try:
-            correlation_data['Mean_HR'] = [mean_hr] * len(video_data) if mean_hr and video_data is not None else [mean_hr]
-            correlation_data['Stress_Index'] = [ekg_data.EKG.stress_index] * len(video_data) if video_data is not None else [ekg_data.EKG.stress_index]
-            correlation_data['RMSSD'] = [ekg_data.EKG.rmssd] * len(video_data) if video_data is not None else [ekg_data.EKG.rmssd]
-            correlation_data['HRV_Score'] = [ekg_data.EKG.hr_variability_score] * len(video_data) if video_data is not None else [ekg_data.EKG.hr_variability_score]
-        except Exception as e:
-            print(f"⚠️ Could not extract EKG metrics for correlation: {e}")
-    
-    # Performance metrics
+    # Start with performance data as the base (it has time windows)
     if performance_analysis is not None and 'data' in performance_analysis:
-        perf_data = performance_analysis['data']
-        if len(perf_data) > 0:
-            correlation_data['KD_Ratio'] = perf_data['kd_ratio'].values
-            correlation_data['Performance_Score'] = perf_data['performance_score'].values
-            correlation_data['Action_Rate'] = perf_data['action_rate'].values
+        perf_data = performance_analysis['data'].copy()
+        if len(perf_data) > 0 and not perf_data.empty:
+            # Use performance data columns that are numeric
+            if 'kd_ratio' in perf_data.columns:
+                correlation_data['KD_Ratio'] = perf_data['kd_ratio'].values
+            if 'performance_score' in perf_data.columns:
+                correlation_data['Performance_Score'] = perf_data['performance_score'].values
+            if 'action_rate' in perf_data.columns:
+                correlation_data['Action_Rate'] = perf_data['action_rate'].values
+            if 'avg_heart_rate' in perf_data.columns:
+                correlation_data['Avg_Heart_Rate'] = perf_data['avg_heart_rate'].values
+            if 'hr_variability' in perf_data.columns:
+                correlation_data['HR_Variability'] = perf_data['hr_variability'].values
+            if 'kills' in perf_data.columns:
+                correlation_data['Kills'] = perf_data['kills'].values
+            if 'deaths' in perf_data.columns:
+                correlation_data['Deaths'] = perf_data['deaths'].values
     
-    # Input intensity metrics
+    # Add intensity metrics if available and same length
     if intensity_correlation is not None and 'data' in intensity_correlation:
         intensity_data = intensity_correlation['data']
-        if len(intensity_data) > 0:
-            correlation_data['Input_Intensity'] = intensity_data['intensity_score'].values
-            correlation_data['Inputs_Per_Second'] = intensity_data['inputs_per_second'].values
+        if len(intensity_data) > 0 and not intensity_data.empty:
+            base_len = len(next(iter(correlation_data.values()))) if correlation_data else len(intensity_data)
+            if len(intensity_data) == base_len:
+                if 'intensity_score' in intensity_data.columns:
+                    correlation_data['Input_Intensity'] = intensity_data['intensity_score'].values
+                if 'inputs_per_second' in intensity_data.columns:
+                    correlation_data['Inputs_Per_Second'] = intensity_data['inputs_per_second'].values
     
     # Create correlation matrix if we have data
-    if correlation_data:
-        # Make all arrays the same length (use minimum length)
-        min_length = min(len(values) for values in correlation_data.values() if hasattr(values, '__len__'))
-        
-        for key in correlation_data:
-            if hasattr(correlation_data[key], '__len__') and len(correlation_data[key]) > min_length:
-                correlation_data[key] = correlation_data[key][:min_length]
-            elif not hasattr(correlation_data[key], '__len__'):
-                correlation_data[key] = [correlation_data[key]] * min_length
-        
+    if correlation_data and len(correlation_data) >= 2:
         corr_df = pd.DataFrame(correlation_data)
-        correlation_matrix = corr_df.corr()
         
-        # Create heatmap
-        fig_corr = go.Figure(data=go.Heatmap(
-            z=correlation_matrix.values,
-            x=correlation_matrix.columns,
-            y=correlation_matrix.columns,
-            colorscale='RdBu',
-            zmid=0,
-            text=correlation_matrix.round(3).values,
-            texttemplate="%{text}",
-            textfont={"size": 10},
-            hoverongaps=False
-        ))
+        # Remove columns with all NaN or constant values
+        corr_df = corr_df.dropna(axis=1, how='all')
+        corr_df = corr_df.loc[:, corr_df.std() > 0]
         
-        fig_corr.update_layout(
-            title="Multimodal Correlation Matrix",
-            width=800,
-            height=600
-        )
-        
-        fig_corr.show()
-        
-        return correlation_matrix
+        if len(corr_df.columns) >= 2:
+            # Calculate correlation matrix
+            correlation_matrix = corr_df.corr()
+            
+            # Remove NaN values (replace with 0 for visualization)
+            correlation_matrix = correlation_matrix.fillna(0)
+            
+            # Create improved heatmap
+            fig_corr = go.Figure(data=go.Heatmap(
+                z=correlation_matrix.values,
+                x=[col.replace('_', ' ') for col in correlation_matrix.columns],
+                y=[col.replace('_', ' ') for col in correlation_matrix.columns],
+                colorscale='RdBu',
+                zmid=0,
+                zmin=-1,
+                zmax=1,
+                text=correlation_matrix.round(2).values,
+                texttemplate="%{text}",
+                textfont={"size": 11, "color": "white"},
+                hoverongaps=False,
+                colorbar=dict(title="Correlation")
+            ))
+            
+            fig_corr.update_layout(
+                title={
+                    'text': "Performance and Physiological Correlation Matrix",
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'font': {'size': 18}
+                },
+                width=900,
+                height=700,
+                template='plotly_white',
+                xaxis={'side': 'bottom'},
+                yaxis={'autorange': 'reversed'}
+            )
+            
+            fig_corr.show()
+            
+            # Save correlation matrix
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            correlation_matrix.to_csv(output_dir / f'correlation_matrix_{timestamp}.csv')
+            print(f"[OK] Correlation matrix saved with {len(correlation_matrix)} variables")
+            
+            return correlation_matrix
+        else:
+            print("[WARNING] Insufficient variables with valid data for correlation analysis")
+    else:
+        print("[WARNING] Need at least 2 data sources for correlation analysis")
     
     return pd.DataFrame()
 
@@ -1772,12 +2226,12 @@ def generate_comprehensive_insights():
     # EKG insights using existing analyzer results
     if ekg_data is not None:
         try:
-            insights.append(f"💓 Average heart rate during gaming: {mean_hr:.1f} BPM")
-            insights.append(f"😰 Stress index: {ekg_data.EKG.stress_index:.1f}/100 ({ekg_data.EKG.rhythm_type})")
-            insights.append(f"🫀 HRV Score: {ekg_data.EKG.hr_variability_score:.1f} (RMSSD: {ekg_data.EKG.rmssd:.1f}ms)")
-            insights.append(f"📊 Detected {len(peaks)} R-peaks and {len(beats)} beats over {ekg_data['Timestamp'].max():.1f}s")
+            insights.append(f"Average heart rate during gaming: {mean_hr:.1f} BPM")
+            insights.append(f"Stress index: {ekg_data.EKG.stress_index:.1f}/100 ({ekg_data.EKG.rhythm_type})")
+            insights.append(f"HRV Score: {ekg_data.EKG.hr_variability_score:.1f} (RMSSD: {ekg_data.EKG.rmssd:.1f}ms)")
+            insights.append(f"Detected {len(peaks)} R-peaks and {len(beats)} beats over {ekg_data['Timestamp'].max():.1f}s")
         except Exception as e:
-            insights.append(f"⚠️ EKG analysis partially available")
+            insights.append(f"[WARNING] EKG analysis partially available")
     
     # Event response insights
     if event_analysis:
@@ -1794,27 +2248,27 @@ def generate_comprehensive_insights():
                 most_impactful_events.append(f"{event_type} {direction} HR by {abs(max_impact):.1f} BPM ({best_window})")
         
         if most_impactful_events:
-            insights.append(f"⚔️ Most impactful events: {'; '.join(most_impactful_events[:3])}")
+            insights.append(f"Most impactful events: {'; '.join(most_impactful_events[:3])}")
     
     # Stress insights
     if stress_periods is not None:
         stress_duration = len(stress_periods) * 5  # Approximate
         total_duration = ekg_data['Timestamp'].max() if ekg_data is not None else 0
         stress_percentage = (stress_duration / total_duration) * 100 if total_duration > 0 else 0
-        insights.append(f"😰 High-stress periods: {stress_percentage:.1f}% of gaming session")
+        insights.append(f"High-stress periods: {stress_percentage:.1f}% of gaming session")
         
         if stress_event_correlations is not None:
             top_stress_events = stress_event_correlations.groupby('event_type')['stress_level'].mean().sort_values(ascending=False)
             if len(top_stress_events) > 0:
-                insights.append(f"🔥 Most stressful events: {', '.join(top_stress_events.head(3).index.tolist())}")
+                insights.append(f"Most stressful events: {', '.join(top_stress_events.head(3).index.tolist())}")
     
     # Performance insights
     if performance_analysis is not None and 'data' in performance_analysis:
         perf_data = performance_analysis['data']
         avg_kd = perf_data['kd_ratio'].mean()
         best_performance_hr = perf_data.loc[perf_data['performance_score'].idxmax(), 'avg_heart_rate']
-        insights.append(f"🏆 Average K/D ratio: {avg_kd:.2f}")
-        insights.append(f"🎯 Best performance occurred at {best_performance_hr:.1f} BPM")
+        insights.append(f"Average K/D ratio: {avg_kd:.2f}")
+        insights.append(f"Best performance occurred at {best_performance_hr:.1f} BPM")
     
     # Input intensity insights
     if intensity_correlation is not None and 'correlations' in intensity_correlation:
@@ -1822,7 +2276,7 @@ def generate_comprehensive_insights():
         strongest_corr = max(correlations.items(), key=lambda x: abs(x[1])) if correlations else None
         if strongest_corr and abs(strongest_corr[1]) > 0.3:
             direction = "positively" if strongest_corr[1] > 0 else "negatively"
-            insights.append(f"🎮 Input intensity {direction} correlates with heart rate (r={strongest_corr[1]:.3f})")
+            insights.append(f"Input intensity {direction} correlates with heart rate (r={strongest_corr[1]:.3f})")
     
     # Data quality insights
     data_sources = []
@@ -1832,21 +2286,46 @@ def generate_comprehensive_insights():
         data_sources.append(f"Video ({len(video_data)} events)")
     if controller_data is not None:
         data_sources.append(f"Controller ({len(controller_data)} inputs)")
+    if apple_hr_data is not None:
+        data_sources.append(f"Apple Watch ({len(apple_hr_data)} HR measurements)")
+    if oura_hr_data is not None:
+        data_sources.append(f"Oura Ring ({len(oura_hr_data)} HR measurements)")
     
-    insights.append(f"📊 Data sources: {', '.join(data_sources)}")
+    insights.append(f"Data sources: {', '.join(data_sources)}")
+    
+    # Multi-source HR comparison insights
+    if hr_comparison is not None:
+        available_sources = list(hr_comparison.keys())
+        if 'Apple_Watch' in available_sources or 'Oura_Ring' in available_sources:
+            num_sources = len([k for k in available_sources if k != 'agreement'])
+            insights.append(f"Multi-device validation: {num_sources} heart rate sources compared")
+            
+            # Add Oura-specific insights
+            if 'Oura_Ring' in available_sources:
+                oura_stats = hr_comparison['Oura_Ring']
+                insights.append(f"Oura Ring baseline: {oura_stats['mean_hr']:.1f} BPM average")
+                
+                # Add readiness context if available
+                if oura_readiness:
+                    insights.append(f"Oura Readiness: {oura_readiness.get('score')}/100 - Body prepared for activity")
+                
+                # Add temperature insights if available
+                if oura_temp_data is not None and len(oura_temp_data) > 0:
+                    temp_change = oura_temp_data['skin_temp'].max() - oura_temp_data['skin_temp'].min()
+                    insights.append(f"Skin temperature variation: {temp_change:.2f}°C during session")
     
     return insights
 
 # Create correlation matrix and generate insights
-print("🔗 Creating correlation matrix...")
+print("Creating correlation matrix...")
 correlation_matrix = create_comprehensive_correlation_matrix()
 
 if not correlation_matrix.empty:
-    print(f"✅ Correlation matrix created with {len(correlation_matrix)} variables")
+    print(f"[OK] Correlation matrix created with {len(correlation_matrix)} variables")
 else:
-    print("⚠️ Could not create correlation matrix - insufficient overlapping data")
+    print("[WARNING] Could not create correlation matrix - insufficient overlapping data")
 
-print("\n🧠 COMPREHENSIVE INSIGHTS:")
+print("\nCOMPREHENSIVE INSIGHTS:")
 print("=" * 50)
 insights = generate_comprehensive_insights()
 for insight in insights:
@@ -1858,7 +2337,7 @@ SECTION 9: RESEARCH RECOMMENDATIONS AND EXPORT
 ==============================================
 """
 
-print("\n💾 Generating research recommendations and exporting results...")
+print("\nGenerating research recommendations and exporting results...")
 
 def generate_research_recommendations():
     """
@@ -1866,7 +2345,7 @@ def generate_research_recommendations():
     """
     recommendations = []
     
-    recommendations.append("🔬 RESEARCH RECOMMENDATIONS:")
+    recommendations.append("RESEARCH RECOMMENDATIONS:")
     recommendations.append("=" * 40)
     
     # EKG-based recommendations
@@ -1909,14 +2388,14 @@ def generate_research_recommendations():
             recommendations.append("• Performance degrades with higher heart rate - stress management needed")
     
     # Technical recommendations
-    recommendations.append("\n🔧 TECHNICAL RECOMMENDATIONS:")
+    recommendations.append("\nTECHNICAL RECOMMENDATIONS:")
     recommendations.append("• Implement real-time biofeedback during gaming")
     recommendations.append("• Develop personalized break recommendations based on physiological state")
     recommendations.append("• Create adaptive difficulty based on stress levels")
     recommendations.append("• Consider heart rate variability training for competitive gamers")
     
     # Future research directions
-    recommendations.append("\n🚀 FUTURE RESEARCH DIRECTIONS:")
+    recommendations.append("\nFUTURE RESEARCH DIRECTIONS:")
     recommendations.append("• Long-term cardiovascular impact of competitive gaming")
     recommendations.append("• Personalized physiological gaming profiles")
     recommendations.append("• Real-time stress intervention systems")
@@ -1990,25 +2469,25 @@ try:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     with open(f'research_recommendations_{timestamp}.txt', 'w') as f:
         f.write(research_recommendations)
-    print(f"✅ Recommendations saved to: research_recommendations_{timestamp}.txt")
+    print(f"[OK] Recommendations saved to: research_recommendations_{timestamp}.txt")
 except Exception as e:
-    print(f"⚠️ Could not save recommendations: {e}")
+    print(f"[WARNING] Could not save recommendations: {e}")
 
 print("\n" + "=" * 60)
-print("🎮💓 COMPREHENSIVE MULTIMODAL GAMING HEALTH ANALYSIS COMPLETE!")
+print("COMPREHENSIVE MULTIMODAL GAMING HEALTH ANALYSIS COMPLETE")
 print("=" * 60)
 print("Key Features Completed:")
-print("✅ EKG analysis using existing peaks/beats detection")
-print("✅ Multi-window event response analysis (5s, 15s, 30s)")
-print("✅ Advanced stress detection and correlation")
-print("✅ Controller input intensity analysis")
-print("✅ Performance vs physiology correlation")
-print("✅ Comprehensive visualization dashboard")
-print("✅ Statistical correlation matrix")
-print("✅ Research recommendations")
-print("✅ Results export functionality")
+print("[OK] EKG analysis using existing peaks/beats detection")
+print("[OK] Multi-window event response analysis (5s, 15s, 30s)")
+print("[OK] Advanced stress detection and correlation")
+print("[OK] Controller input intensity analysis")
+print("[OK] Performance vs physiology correlation")
+print("[OK] Comprehensive visualization dashboard")
+print("[OK] Statistical correlation matrix")
+print("[OK] Research recommendations")
+print("[OK] Results export functionality")
 print("\nThis analysis leverages all existing analyzer capabilities")
-print("and provides immediate insights into gaming health correlations!")
+print("and provides comprehensive insights into gaming health correlations.")
 print("=" * 60)
 
 # %%
